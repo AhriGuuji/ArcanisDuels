@@ -1,20 +1,40 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public class BattleManager : MonoBehaviour
 {
+    [SerializeField] private CardSelector selector1, selector2;
     private CharacterStats _firstAtLastTurn;
     private CharacterStats _player1, _player2;
     private List<ExtraEffect> _extras;
     private int _actualTurn;
-
-    private void Update()
+    public int ActualTurn => _actualTurn;
+    private List<List<Card>> _sequences;
+    public event Action OnEndTurn;
+    private void EndTurn()
     {
-        
+        OnEndTurn?.Invoke();
     }
 
-    private void Turn(Card[] sequence1, Card[] sequence2)
+    private void Start()
+    {
+        _sequences = new();
+        _actualTurn = 0;
+        selector1.OnSequenceSelect += ReceiveSequences;
+        selector2.OnSequenceSelect += ReceiveSequences;
+    }
+
+    private void ReceiveSequences(List<Card> sequence)
+    {
+        _sequences.Add(sequence);
+        if (_sequences.Count == 2)
+            Turn(_sequences[0], _sequences[1]);
+    }
+
+    private void Turn(List<Card> sequence1, List<Card> sequence2)
     {
         _actualTurn++;
 
@@ -47,8 +67,8 @@ public class BattleManager : MonoBehaviour
             {
                 if (_firstAtLastTurn = null)
                 {
-                    Card[][] cardsSequences = {sequence1,sequence2};
-                    Card[] firstSequence = cardsSequences[Random.Range(0,cardsSequences.Length)];
+                    List<List<Card>> cardsSequences = new (){sequence1,sequence2};
+                    List<Card> firstSequence = cardsSequences[Random.Range(0,cardsSequences.Count)];
 
                     DoSequence(firstSequence);
                     if (_firstAtLastTurn == sequence1[0].Owner)
@@ -76,9 +96,10 @@ public class BattleManager : MonoBehaviour
 
         //Apply Extra Effects
         ApplyExtras();
+        EndTurn();
     }
 
-    private void DoSequence(Card[] cards)
+    private void DoSequence(List<Card> cards)
     {
         CharacterStats opponent = cards[0].Owner == _player1 ? _player2 : _player1;
 
