@@ -16,19 +16,27 @@ public class BattleManager : MonoBehaviour
     public event Action OnEndTurn;
     private void EndTurn()
     {
+        _sequences.Clear();
+        selector1.EndTurnReset();
+        selector2.EndTurnReset();
         OnEndTurn?.Invoke();
     }
 
-    private void Start()
+    private void Awake()
     {
+        _extras = new();
         _sequences = new();
         _actualTurn = 0;
+        _player1 = selector1.GetComponent<CharacterStats>();
+        _player2 = selector2.GetComponent<CharacterStats>();
         selector1.OnSequenceSelect += ReceiveSequences;
         selector2.OnSequenceSelect += ReceiveSequences;
     }
 
     private void ReceiveSequences(List<Card> sequence)
     {
+        Debug.Log("Cards received from: " + sequence[0].Owner.name);
+        if (_sequences.Count > 0) if(sequence[0].Owner == _sequences[0][0].Owner) return;
         _sequences.Add(sequence);
         if (_sequences.Count == 2)
             Turn(_sequences[0], _sequences[1]);
@@ -65,7 +73,7 @@ public class BattleManager : MonoBehaviour
             }
             else
             {
-                if (_firstAtLastTurn = null)
+                if (_firstAtLastTurn == null)
                 {
                     List<List<Card>> cardsSequences = new (){sequence1,sequence2};
                     List<Card> firstSequence = cardsSequences[Random.Range(0,cardsSequences.Count)];
@@ -108,20 +116,30 @@ public class BattleManager : MonoBehaviour
             switch(card.Type)
             {
                 case CardType.Damage:
-                    DoDamage(card, opponent);
-                    break;
+                    {
+                        DoDamage(card, opponent);
+                        break;
+                    }
                 case CardType.Heal:
-                    DoHealing(card, card.Owner);
-                    break;
+                    {
+                        DoHealing(card, card.Owner);
+                        break;
+                    }
                 case CardType.Block:
-                    DoBlock(card, card.Owner);
-                    break;
+                    {
+                        DoBlock(card, card.Owner);
+                        break;
+                    }
                 case CardType.PowerUp:
-                    PowerUp(card as StatusCard, card.Owner); 
-                    break;
+                    {
+                       PowerUp(card as StatusCard, card.Owner); 
+                        break; 
+                    }
                 case CardType.PowerDown:
-                    PowerDown(card as StatusCard, opponent);
-                    break;
+                    {
+                        PowerDown(card as StatusCard, opponent);
+                        break;
+                    }
             }
         }
     }

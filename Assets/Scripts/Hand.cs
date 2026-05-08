@@ -10,6 +10,7 @@ public class Hand : MonoBehaviour
     private void Start()
     {
         _myDeck = GetComponent<Deck>();
+        DrawCards();
         BM.OnEndTurn += DrawCards;
     }
 

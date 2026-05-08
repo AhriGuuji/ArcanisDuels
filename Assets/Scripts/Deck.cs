@@ -4,15 +4,24 @@ using System.Linq;
 
 public class Deck : MonoBehaviour
 {
+    [SerializeField] List<Card> testDeck;
     private List<Card> _deck;
     private List<Card> _availableDeck;
     private List<Card> _cemitery;
 
+    private void Awake()
+    {
+        _deck = new ();
+        _deck = testDeck;
+        _availableDeck = new ();
+        _cemitery = new ();
+    }
+
     public Card GetRandomCard()
     {
-        if (_availableDeck.Count == 0) Shuffle();
-        Card newCard = _availableDeck[Random.Range(0, _deck.Count)];
-        _deck.Remove(newCard);
+        if (_availableDeck.Count == 0 || _availableDeck == null ) Shuffle();
+        Card newCard = _availableDeck[Random.Range(0, _availableDeck.Count)];
+        _availableDeck.Remove(newCard);
         return newCard;
     }
 

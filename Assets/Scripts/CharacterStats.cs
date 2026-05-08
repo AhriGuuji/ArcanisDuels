@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class CharacterStats : MonoBehaviour
@@ -10,6 +11,18 @@ public class CharacterStats : MonoBehaviour
     private float _block;
 
     public float GetSpeed => speed;
+    public float CurrentHealth => _health;
+
+    public event Action OnHealthChange;
+    private void HealthChanged()
+    {
+        OnHealthChange?.Invoke();
+    }
+
+    private void Start()
+    {
+        _health = maxHealth;
+    }
 
     public void TakeDamage(float damage)
     {
@@ -26,6 +39,7 @@ public class CharacterStats : MonoBehaviour
         }
 
         _health -= damageDone;
+        HealthChanged();
 
         if (_health <= 0)
         {
@@ -37,6 +51,7 @@ public class CharacterStats : MonoBehaviour
     public void ReceiveHealing(float healing)
     {
         _health += healing;
+        HealthChanged();
 
         if (_health > maxHealth)
         {
