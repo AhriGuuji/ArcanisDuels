@@ -2,21 +2,24 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Unity.Netcode;
 using Random = UnityEngine.Random;
 
-public class BattleManager : MonoBehaviour
+public class BattleManager : NetworkBehaviour
 {
     [SerializeField] private CardSelector selector1, selector2;
     private CharacterStats _firstAtLastTurn;
     private CharacterStats _player1, _player2;
     private List<ExtraEffect> _extras;
-    private int _actualTurn;
-    public int ActualTurn => _actualTurn;
+    private NetworkVariable<int> _actualTurn = new NetworkVariable<int>(0,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server);
+    public int ActualTurn => _actualTurn.Value;
     private List<List<Card>> _sequences;
     public event Action OnEndTurn;
+    private HashSet<ulong> _playersWhoSubmitted = new HashSet<ulong>();
     private void EndTurn()
     {
-        _sequences.Clear();
         selector1.EndTurnReset();
         selector2.EndTurnReset();
         OnEndTurn?.Invoke();
@@ -26,7 +29,6 @@ public class BattleManager : MonoBehaviour
     {
         _extras = new();
         _sequences = new();
-        _actualTurn = 0;
         _player1 = selector1.GetComponent<CharacterStats>();
         _player2 = selector2.GetComponent<CharacterStats>();
         selector1.OnSequenceSelect += ReceiveSequences;
@@ -35,7 +37,11 @@ public class BattleManager : MonoBehaviour
 
     private void ReceiveSequences(List<Card> sequence)
     {
-        Debug.Log("Cards received from: " + sequence[0].Owner.name);
+        if (!IsServer) return;
+
+        ulong ownerId = sequence[0].Owner.ThisOwnerClientId;
+        if (_playersWhoSubmitted.Contains(ownerId)) return;
+
         if (_sequences.Count > 0) if(sequence[0].Owner == _sequences[0][0].Owner) return;
         _sequences.Add(sequence);
         if (_sequences.Count == 2)
@@ -44,7 +50,9 @@ public class BattleManager : MonoBehaviour
 
     private void Turn(List<Card> sequence1, List<Card> sequence2)
     {
-        _actualTurn++;
+        _actualTurn.Value++;
+        _sequences.Clear();
+        _playersWhoSubmitted.Clear();
 
         bool seq1priority = sequence1.Any(card => card.Priority);
         bool seq2priority = sequence2.Any(card => card.Priority);
@@ -169,30 +177,44 @@ public class BattleManager : MonoBehaviour
     private void DoDamage(Card attackCard, CharacterStats target)
     {
         attackCard.BattleManager = this;
-        target.TakeDamage(attackCard.Effect(target));
+        float damage = attackCard.Effect(target);
+        target.TakeDamage(damage);
+
+        // Tell all clients to play the animation
+        target.PlayDamageAnimationClientRpc(damage);
     }
 
     private void DoHealing(Card healingCard, CharacterStats target)
     {
         healingCard.BattleManager = this;
-        target.ReceiveHealing(healingCard.Effect(target));
+        float healing = healingCard.Effect(target);
+        target.ReceiveHealing(healing);
+
+        target.PlayHealAnimationClientRpc(healing);
     }
 
     private void DoBlock(Card blockCard, CharacterStats target)
     {
         blockCard.BattleManager = this;
-        target.ReceiveBlocking(blockCard.Effect(target));
+        float block = blockCard.Effect(target);
+        target.ReceiveBlocking(block);
+
+        target.PlayBlockAnimationClientRpc(block);
     }
 
     private void PowerUp(StatusCard powerUpCard, CharacterStats target)
     {
         powerUpCard.BattleManager = this;
         target.GetPowered(powerUpCard);
+
+        target.PlayPowerUpAnimationClientRpc(powerUpCard.StatusName);
     }
 
     private void PowerDown(StatusCard powerDownCard, CharacterStats target)
     {
         powerDownCard.BattleManager = this;
         target.GetUnpowered(powerDownCard);
+
+        target.PlayPowerDownAnimationClientRpc(powerDownCard.StatusName);
     }
 }
