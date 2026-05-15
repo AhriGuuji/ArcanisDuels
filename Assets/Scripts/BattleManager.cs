@@ -6,7 +6,9 @@ using Random = UnityEngine.Random;
 
 public class BattleManager : MonoBehaviour
 {
-    [SerializeField] private CardSelector selector1, selector2;
+    [SerializeField] private SelectionData data;
+    [SerializeField] private Transform pos1, pos2;
+    private CardSelector _selector1, _selector2;
     private CharacterStats _firstAtLastTurn;
     private CharacterStats _player1, _player2;
     private List<ExtraEffect> _extras;
@@ -17,8 +19,8 @@ public class BattleManager : MonoBehaviour
     private void EndTurn()
     {
         _sequences.Clear();
-        selector1.EndTurnReset();
-        selector2.EndTurnReset();
+        _selector1.EndTurnReset();
+        _selector2.EndTurnReset();
         OnEndTurn?.Invoke();
     }
 
@@ -26,11 +28,20 @@ public class BattleManager : MonoBehaviour
     {
         _extras = new();
         _sequences = new();
-        _actualTurn = 0;
-        _player1 = selector1.GetComponent<CharacterStats>();
-        _player2 = selector2.GetComponent<CharacterStats>();
-        selector1.OnSequenceSelect += ReceiveSequences;
-        selector2.OnSequenceSelect += ReceiveSequences;
+
+        StartMatch();
+    }
+
+    private void StartMatch()
+    {
+        GameObject prefab1 = Instantiate(Resources.Load<GameObject>($"Characters/{data.prefabName}"),pos1);
+        GameObject prefab2 = Instantiate(Resources.Load<GameObject>($"Characters/{data.prefabName}"),pos2); 
+
+        _selector1 = prefab1.GetComponent<CardSelector>();
+        _player1 = _selector1.GetComponent<CharacterStats>();
+        _player2 = _selector2.GetComponent<CharacterStats>();
+        _selector1.OnSequenceSelect += ReceiveSequences;
+        _selector2.OnSequenceSelect += ReceiveSequences;
     }
 
     private void ReceiveSequences(List<Card> sequence)
