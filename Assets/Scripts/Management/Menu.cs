@@ -3,6 +3,14 @@ using UnityEngine;
 
 public class Menu : MonoBehaviour
 {
+    public void FindMatch(string sceneToLoad)
+    {
+        if (SelectionData.prefabName == null 
+            || SelectionData.deck.Count <20) 
+            return;
+        SceneManager.LoadScene(sceneToLoad);
+    }
+
     public void ChangeScene(string sceneToLoad)
     {
         SceneManager.LoadScene(sceneToLoad);

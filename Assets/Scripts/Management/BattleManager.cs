@@ -6,11 +6,10 @@ using Random = UnityEngine.Random;
 
 public class BattleManager : MonoBehaviour
 {
-    [SerializeField] private SelectionData data;
     [SerializeField] private Transform pos1, pos2;
-    private CardSelector _selector1, _selector2;
+    private CardSelector _localSelector, _selector2;
     private CharacterStats _firstAtLastTurn;
-    private CharacterStats _player1, _player2;
+    private CharacterStats _localPlayer, _player2;
     private List<ExtraEffect> _extras;
     private int _actualTurn;
     public int ActualTurn => _actualTurn;
@@ -19,7 +18,7 @@ public class BattleManager : MonoBehaviour
     private void EndTurn()
     {
         _sequences.Clear();
-        _selector1.EndTurnReset();
+        _localSelector.EndTurnReset();
         _selector2.EndTurnReset();
         OnEndTurn?.Invoke();
     }
@@ -34,13 +33,16 @@ public class BattleManager : MonoBehaviour
 
     private void StartMatch()
     {
-        GameObject prefab1 = Instantiate(Resources.Load<GameObject>($"Characters/{data.prefabName}"),pos1);
-        GameObject prefab2 = Instantiate(Resources.Load<GameObject>($"Characters/{data.prefabName}"),pos2); 
+        //Owner
+        GameObject localPlayer = Instantiate(Resources.Load<GameObject>($"Characters/{SelectionData.prefabName}"),pos1); 
 
-        _selector1 = prefab1.GetComponent<CardSelector>();
-        _player1 = _selector1.GetComponent<CharacterStats>();
+        _localSelector = localPlayer.GetComponent<CardSelector>();
+        _localPlayer = _localSelector.GetComponent<CharacterStats>();
+        _localSelector.OnSequenceSelect += ReceiveSequences;
+
+
+        //Other
         _player2 = _selector2.GetComponent<CharacterStats>();
-        _selector1.OnSequenceSelect += ReceiveSequences;
         _selector2.OnSequenceSelect += ReceiveSequences;
     }
 
@@ -120,7 +122,7 @@ public class BattleManager : MonoBehaviour
 
     private void DoSequence(List<Card> cards)
     {
-        CharacterStats opponent = cards[0].Owner == _player1 ? _player2 : _player1;
+        CharacterStats opponent = cards[0].Owner == _localPlayer ? _player2 : _localPlayer;
 
         foreach (Card card in cards)
         {

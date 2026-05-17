@@ -1,9 +1,7 @@
 using System.Collections.Generic;
-using UnityEngine;
 
-[CreateAssetMenu(fileName = "SelectionData", menuName = "ScriptableObjects/SelectionData")]
-public class SelectionData : ScriptableObject
+public static class SelectionData
 {
-    public string prefabName;
-    public List<Card> deck;
+    public static string prefabName;
+    public static List<Card> deck = new();
 }
