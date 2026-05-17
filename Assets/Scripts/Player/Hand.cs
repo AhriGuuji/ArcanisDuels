@@ -3,13 +3,14 @@ using UnityEngine;
 public class Hand : MonoBehaviour
 {
     [SerializeField] private BattleManager BM;
+    [SerializeField] private SelectionData data;
     private Deck _myDeck;
     private Card[] _hand = new Card[3];
     public Card GetCard(int idx) => _hand[idx];
 
     private void Start()
     {
-        _myDeck = GetComponent<Deck>();
+        _myDeck = new Deck(data.deck);
         DrawCards();
         BM.OnEndTurn += DrawCards;
     }

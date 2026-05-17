@@ -2,17 +2,15 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 
-public class Deck : MonoBehaviour
+public class Deck
 {
-    [SerializeField] List<Card> testDeck;
     private List<Card> _deck;
     private List<Card> _availableDeck;
     private List<Card> _cemitery;
 
-    private void Awake()
+    public Deck(List<Card> deck)
     {
-        _deck = new ();
-        _deck = testDeck;
+        _deck = deck;
         _availableDeck = new ();
         _cemitery = new ();
     }

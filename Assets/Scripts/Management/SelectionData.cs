@@ -5,5 +5,5 @@ using UnityEngine;
 public class SelectionData : ScriptableObject
 {
     public string prefabName;
-    public Deck deck;
+    public List<Card> deck;
 }
