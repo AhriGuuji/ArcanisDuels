@@ -1,61 +1,27 @@
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.SceneManagement;
-using System.Collections.Generic;
 
-public class CharacterSelectionManager : MonoBehaviour
+public class CharacterSelection : MonoBehaviour
 {
     [SerializeField] private string battleSceneName = "BattleScene";
     
-    private GameObject _selectedPlayer1Prefab;
-    private GameObject _selectedPlayer2Prefab;
-    
-    // Called when Player 1 picks a character
-    public void Player1SelectCharacter(GameObject Prefab)
-    {
-        _selectedPlayer1Prefab = Prefab;
-        // Update UI, etc.
-    }
-    
-    // Called when Player 2 picks a character
-    public void Player2SelectCharacter(GameObject Prefab)
-    {
-        _selectedPlayer2Prefab = Prefab;
-    }
-
-    private ulong GetPlayer1ClientId()
-    {
-        // Player 1 is the host
-        return NetworkManager.Singleton.LocalClientId;
-    }
-
-    private ulong GetPlayer2ClientId()
-    {
-        // Player 2 is the only other connected client
-        foreach (KeyValuePair<ulong, NetworkClient> client in NetworkManager.Singleton.ConnectedClients)
-        {
-            if (client.Key != NetworkManager.Singleton.LocalClientId)
-                return client.Key;
-        }
-        return 0; // Not found
-    }
-    
     // When both have selected, start battle
-    public void StartBattle()
+    public void StartBattle(ulong client1Id, GameObject char1Prefab, ulong client2Id, GameObject char2Prefab)
     {
         if (!NetworkManager.Singleton.IsServer) return;
         
         // Spawn Player 1's chosen character
-        GameObject player1 = Instantiate(_selectedPlayer1Prefab);
+        GameObject player1 = Instantiate(char1Prefab);
         NetworkObject netObj1 = player1.GetComponent<NetworkObject>();
-        ulong player1ClientId = GetPlayer1ClientId(); // Your logic to get Player 1's client ID
+        ulong player1ClientId = client1Id; // Your logic to get Player 1's client ID
         netObj1.SpawnWithOwnership(player1ClientId);
         player1.GetComponent<CharacterStats>().SetOwnerClientId(player1ClientId);
         
         // Spawn Player 2's chosen character (can be different prefab!)
-        GameObject player2 = Instantiate(_selectedPlayer2Prefab);
+        GameObject player2 = Instantiate(char2Prefab);
         NetworkObject netObj2 = player2.GetComponent<NetworkObject>();
-        ulong player2ClientId = GetPlayer2ClientId();
+        ulong player2ClientId = client2Id;
         netObj2.SpawnWithOwnership(player2ClientId);
         player2.GetComponent<CharacterStats>().SetOwnerClientId(player2ClientId);
         
