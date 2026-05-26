@@ -8,6 +8,7 @@ using Unity.Netcode;
 public class BattleManager : NetworkBehaviour
 {
     [SerializeField] private NetworkSetup networkSetup;
+    [SerializeField] private Transform pos1, pos2;
     [SerializeField] private Transform[] cardPos;
     private CardSelector _selector1, _selector2;
     private CharacterStats _firstAtLastTurn;
@@ -46,7 +47,7 @@ public class BattleManager : NetworkBehaviour
 
         _selector1.OnSequenceSelect += ReceiveSequences;
         _selector2.OnSequenceSelect += ReceiveSequences;
-    
+
         _hand1.ReceiveDeck(new Deck(SelectionData.deck));
         _hand2.ReceiveDeck(new Deck(SelectionData.deck));
 
