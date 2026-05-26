@@ -92,7 +92,10 @@ public class NetworkSetup : MonoBehaviour
         if (isServer)
             StartCoroutine(StartAsServerCR());
         else
-            StartCoroutine(StartAsClientCR());
+        {
+            string charName = SelectionData.prefabName;
+            StartCoroutine(StartAsClientCR(charName));
+        }
     }
 
     IEnumerator StartAsServerCR()
@@ -230,17 +233,31 @@ public class NetworkSetup : MonoBehaviour
         }
     }
 
-    [ClientRpc]
     private void OnClientConnected(ulong clientId)
     {
         if (!NetworkManager.Singleton.IsServer) return;
+
+        var connectedClient = NetworkManager.Singleton.ConnectedClients[clientId];
+        string chosenCharacter = "DefaultCharacter"; // fallback
+
+        if (connectedClient.ConnectionData != null && connectedClient.ConnectionData.Length > 0)
+        {
+            chosenCharacter = System.Text.Encoding.UTF8.GetString(connectedClient.ConnectionData);
+            Debug.Log($"Player {clientId} chose character: {chosenCharacter}");
+        }
+        else
+        {
+            Debug.LogWarning($"Player {clientId} sent no character data, using default");
+        }
+
+    Debug.Log($"Player {clientId} connected, prefab index = {playerIndex}!");
 
         Debug.Log($"Player {clientId} connected, prefab index = {playerIndex}!");
 
         if (playerIndex == 0)
         {
             // Spawn player object
-            var spawnedObject = Instantiate(Resources.Load<GameObject>($"Characters/{SelectionData.prefabName}"), pos1);
+            var spawnedObject = Instantiate(Resources.Load<GameObject>($"Characters/{chosenCharacter}"), pos1);
             Players[0] = spawnedObject;
             var prefabNetworkObject = spawnedObject.GetComponent<NetworkObject>();
             // It is a player object, Unity needs to know this
@@ -249,10 +266,10 @@ public class NetworkSetup : MonoBehaviour
             prefabNetworkObject.ChangeOwnership(clientId);
             playerIndex++;
         }
-        if (playerIndex == 1)
+        else if (playerIndex == 1)
         {
             // Spawn player object
-            var spawnedObject = Instantiate(Resources.Load<GameObject>($"Characters/{SelectionData.prefabName}"), pos2);
+            var spawnedObject = Instantiate(Resources.Load<GameObject>($"Characters/{chosenCharacter}"), pos2);
             Players[1] = spawnedObject;
             var prefabNetworkObject = spawnedObject.GetComponent<NetworkObject>();
             // It is a player object, Unity needs to know this
@@ -267,13 +284,17 @@ public class NetworkSetup : MonoBehaviour
         Debug.Log($"Player {clientId} disconnected!");
     }
 
-    IEnumerator StartAsClientCR()
+    IEnumerator StartAsClientCR(string characterName)
     {
         var networkManager = GetComponent<NetworkManager>();
         networkManager.enabled = true;
         var transport = GetComponent<UnityTransport>();
         transport.enabled = true;
         SetWindowTitle("Starting as client...");
+
+        byte[] characterData = System.Text.Encoding.UTF8.GetBytes(characterName);
+        networkManager.NetworkConfig.ConnectionData = characterData;
+
         // Wait a frame for setups to be done
         yield return null;
 

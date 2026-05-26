@@ -44,6 +44,8 @@ public class BattleManager : NetworkBehaviour
     {
         _selector1 = networkSetup.Players[0].GetComponent<CardSelector>();
         _selector2 = networkSetup.Players[1].GetComponent<CardSelector>();
+        _hand1 = networkSetup.Players[0].GetComponent<Hand>();
+        _hand2 = networkSetup.Players[1].GetComponent<Hand>();
 
         _selector1.OnSequenceSelect += ReceiveSequences;
         _selector2.OnSequenceSelect += ReceiveSequences;
