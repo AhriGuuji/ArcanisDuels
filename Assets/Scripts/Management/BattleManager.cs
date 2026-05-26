@@ -7,9 +7,11 @@ using Random = UnityEngine.Random;
 public class BattleManager : MonoBehaviour
 {
     [SerializeField] private Transform pos1, pos2;
+    [SerializeField] private Transform[] cardPos;
     private CardSelector _localSelector, _selector2;
     private CharacterStats _firstAtLastTurn;
     private CharacterStats _localPlayer, _player2;
+    private Hand _hand1, _hand2;
     private List<ExtraEffect> _extras;
     private int _actualTurn;
     public int ActualTurn => _actualTurn;
@@ -20,6 +22,8 @@ public class BattleManager : MonoBehaviour
         _sequences.Clear();
         _localSelector.EndTurnReset();
         _selector2.EndTurnReset();
+        DisposeCards(_hand1.DrawCards());
+        DisposeCards(_hand2.DrawCards());
         OnEndTurn?.Invoke();
     }
 
@@ -34,16 +38,35 @@ public class BattleManager : MonoBehaviour
     private void StartMatch()
     {
         //Owner
-        GameObject localPlayer = Instantiate(Resources.Load<GameObject>($"Characters/{SelectionData.prefabName}"),pos1); 
+        GameObject localPlayer = Instantiate(Resources.Load<GameObject>($"Prefab/{SelectionData.prefabName}"),pos1); 
 
         _localSelector = localPlayer.GetComponent<CardSelector>();
         _localPlayer = _localSelector.GetComponent<CharacterStats>();
+        _hand1 = _localSelector.GetComponent<Hand>();
         _localSelector.OnSequenceSelect += ReceiveSequences;
 
 
         //Other
         _player2 = _selector2.GetComponent<CharacterStats>();
-        _selector2.OnSequenceSelect += ReceiveSequences;
+        _hand2 = _selector2.GetComponent<Hand>();
+        _selector2.OnSequenceSelect += ReceiveSequences; 
+
+        _hand1.ReceiveDeck(new Deck(SelectionData.deck));
+        _hand2.ReceiveDeck(new Deck(SelectionData.deck));
+
+        DisposeCards(_hand1.DrawCards());
+        DisposeCards(_hand2.DrawCards());
+    }
+
+    private void DisposeCards(Card[] hand)
+    {
+        for (int i = 0; i < hand.Count(); i++)
+        {
+            string cardName = hand[i].Name;
+            string path = "Prefabs/" + cardName;
+            GameObject cardPrefab = Resources.Load<GameObject>(path);
+            Instantiate(cardPrefab,cardPos[i]);
+        }
     }
 
     private void ReceiveSequences(List<Card> sequence)
