@@ -3,28 +3,36 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Random = UnityEngine.Random;
+using Unity.Netcode;
 
-public class BattleManager : MonoBehaviour
+public class BattleManager : NetworkBehaviour
 {
-    [SerializeField] private Transform pos1, pos2;
-    private CardSelector _localSelector, _selector2;
+    [SerializeField] private NetworkSetup networkSetup;
+    [SerializeField] private Transform[] cardPos;
+    private CardSelector _selector1, _selector2;
     private CharacterStats _firstAtLastTurn;
-    private CharacterStats _localPlayer, _player2;
+    private CharacterStats _player1, _player2;
+    private Hand _hand1, _hand2;
     private List<ExtraEffect> _extras;
-    private int _actualTurn;
-    public int ActualTurn => _actualTurn;
+    private NetworkVariable<int> _actualTurn;
+    public int ActualTurn => _actualTurn.Value;
     private List<List<Card>> _sequences;
     public event Action OnEndTurn;
+    public ulong GetClientID => networkSetup.ClientID;
     private void EndTurn()
     {
         _sequences.Clear();
-        _localSelector.EndTurnReset();
+        _selector1.EndTurnReset();
         _selector2.EndTurnReset();
+        DisposeCards(_hand1.DrawCards());
+        DisposeCards(_hand2.DrawCards());
         OnEndTurn?.Invoke();
     }
 
     private void Awake()
     {
+        if(!IsServer) Destroy(this);
+
         _extras = new();
         _sequences = new();
 
@@ -33,17 +41,28 @@ public class BattleManager : MonoBehaviour
 
     private void StartMatch()
     {
-        //Owner
-        GameObject localPlayer = Instantiate(Resources.Load<GameObject>($"Characters/{SelectionData.prefabName}"),pos1); 
+        _selector1 = networkSetup.Players[0].GetComponent<CardSelector>();
+        _selector2 = networkSetup.Players[1].GetComponent<CardSelector>();
 
-        _localSelector = localPlayer.GetComponent<CardSelector>();
-        _localPlayer = _localSelector.GetComponent<CharacterStats>();
-        _localSelector.OnSequenceSelect += ReceiveSequences;
-
-
-        //Other
-        _player2 = _selector2.GetComponent<CharacterStats>();
+        _selector1.OnSequenceSelect += ReceiveSequences;
         _selector2.OnSequenceSelect += ReceiveSequences;
+    
+        _hand1.ReceiveDeck(new Deck(SelectionData.deck));
+        _hand2.ReceiveDeck(new Deck(SelectionData.deck));
+
+        DisposeCards(_hand1.DrawCards());
+        DisposeCards(_hand2.DrawCards());
+    }
+
+    private void DisposeCards(Card[] hand)
+    {
+        for (int i = 0; i < hand.Count(); i++)
+        {
+            string cardName = hand[i].Name;
+            string path = "Prefabs/" + cardName;
+            GameObject cardPrefab = Resources.Load<GameObject>(path);
+            Instantiate(cardPrefab,cardPos[i]);
+        }
     }
 
     private void ReceiveSequences(List<Card> sequence)
@@ -57,7 +76,7 @@ public class BattleManager : MonoBehaviour
 
     private void Turn(List<Card> sequence1, List<Card> sequence2)
     {
-        _actualTurn++;
+        _actualTurn.Value++;
 
         bool seq1priority = sequence1.Any(card => card.Priority);
         bool seq2priority = sequence2.Any(card => card.Priority);
@@ -122,7 +141,7 @@ public class BattleManager : MonoBehaviour
 
     private void DoSequence(List<Card> cards)
     {
-        CharacterStats opponent = cards[0].Owner == _localPlayer ? _player2 : _localPlayer;
+        CharacterStats opponent = cards[0].Owner == _player1 ? _player2 : _player1;
 
         foreach (Card card in cards)
         {

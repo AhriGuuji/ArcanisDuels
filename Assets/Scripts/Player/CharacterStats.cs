@@ -1,17 +1,19 @@
 using System;
+using Unity.Netcode;
 using UnityEngine;
 
-public class CharacterStats : MonoBehaviour
+public class CharacterStats : NetworkBehaviour
 {
-    [SerializeField] protected float maxHealth;
-    [SerializeField] protected float attack;
-    [SerializeField] protected float speed;
+    [SerializeField] protected NetworkVariable<float> maxHealth;
+    [SerializeField] protected NetworkVariable<float> attack;
+    [SerializeField] protected NetworkVariable<float> speed;
+    protected NetworkObject networkObject;
 
-    private float _health;
-    private float _block;
+    private NetworkVariable<float> _health;
+    private NetworkVariable<float> _block;
 
-    public float GetSpeed => speed;
-    public float CurrentHealth => _health;
+    public float GetSpeed => speed.Value;
+    public float CurrentHealth => _health.Value;
 
     public event Action OnHealthChange;
     private void HealthChanged()
@@ -21,47 +23,48 @@ public class CharacterStats : MonoBehaviour
 
     private void Start()
     {
-        _health = maxHealth;
+        _health.Value = maxHealth.Value;
+        networkObject = GetComponent<NetworkObject>();
     }
 
     public void TakeDamage(float damage)
     {
         float damageDone = damage;
 
-        if (_block > 0)
+        if (_block.Value > 0)
         {
-            _block -= damage;
+            _block.Value -= damage;
 
-            if (_block < 0)
+            if (_block.Value < 0)
             {
-                damageDone = -_block;
+                damageDone = -_block.Value;
             }
         }
 
-        _health -= damageDone;
+        _health.Value -= damageDone;
         HealthChanged();
 
-        if (_health <= 0)
+        if (_health.Value <= 0)
         {
-            _health = 0;
+            _health.Value = 0;
             //Character Death Function
         }
     }
 
     public void ReceiveHealing(float healing)
     {
-        _health += healing;
+        _health.Value += healing;
         HealthChanged();
 
-        if (_health > maxHealth)
+        if (_health.Value > maxHealth.Value)
         {
-            _health = maxHealth;
+            _health.Value = maxHealth.Value;
         }
     }
 
     public void ReceiveBlocking(float block)
     {
-        _block += block;
+        _block.Value += block;
     }
 
     public void GetPowered(StatusCard powerUpCard)
