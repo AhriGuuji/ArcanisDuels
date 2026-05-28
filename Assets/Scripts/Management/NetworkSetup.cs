@@ -39,6 +39,7 @@ public class NetworkSetup : MonoBehaviour
     [SerializeField] private string             joinCode = "";
     //[SerializeField] private bool               enableAnalytics;
     public GameObject[] Players { get; private set; }
+    private Dictionary<ulong, string> pendingPlayerCharacters = new Dictionary<ulong, string>();
     public ulong ClientID => NetworkManager.Singleton.LocalClientId;
 
 
@@ -172,11 +173,14 @@ public class NetworkSetup : MonoBehaviour
 
         //InitAnalytics();
 
+        networkManager.NetworkConfig.ConnectionApproval = true;
+
         if (networkManager.StartServer())
         {
             SetWindowTitle("ArcanisDuels - Server");
             Debug.Log($"Serving on port {transport.ConnectionData.Port}...");
 
+            networkManager.ConnectionApprovalCallback += ApprovalCheck;
             networkManager.OnClientConnectedCallback += OnClientConnected;
             networkManager.OnClientDisconnectCallback += OnClientDisconnected;
         }
@@ -237,45 +241,38 @@ public class NetworkSetup : MonoBehaviour
     {
         if (!NetworkManager.Singleton.IsServer) return;
 
-        var connectedClient = NetworkManager.Singleton.ConnectedClients[clientId];
-        string chosenCharacter = "DefaultCharacter"; // fallback
-
-        if (connectedClient.ConnectionData != null && connectedClient.ConnectionData.Length > 0)
+        // Get the character choice from our dictionary
+        string chosenCharacter = "DefaultCharacter";
+        if (pendingPlayerCharacters.ContainsKey(clientId))
         {
-            chosenCharacter = System.Text.Encoding.UTF8.GetString(connectedClient.ConnectionData);
-            Debug.Log($"Player {clientId} chose character: {chosenCharacter}");
+            chosenCharacter = pendingPlayerCharacters[clientId];
+            pendingPlayerCharacters.Remove(clientId);
+            Debug.Log($"Player {clientId} connected with character: {chosenCharacter}");
         }
         else
         {
-            Debug.LogWarning($"Player {clientId} sent no character data, using default");
+            Debug.LogWarning($"No character found for client {clientId}, using default");
         }
-
-    Debug.Log($"Player {clientId} connected, prefab index = {playerIndex}!");
 
         Debug.Log($"Player {clientId} connected, prefab index = {playerIndex}!");
 
         if (playerIndex == 0)
         {
-            // Spawn player object
             var spawnedObject = Instantiate(Resources.Load<GameObject>($"Characters/{chosenCharacter}"), pos1);
             Players[0] = spawnedObject;
             var prefabNetworkObject = spawnedObject.GetComponent<NetworkObject>();
-            // It is a player object, Unity needs to know this
             prefabNetworkObject.SpawnAsPlayerObject(clientId, true);
-            // Now the ownership of this object is no longer the server, but the client that just connected
             prefabNetworkObject.ChangeOwnership(clientId);
             playerIndex++;
         }
         else if (playerIndex == 1)
         {
-            // Spawn player object
             var spawnedObject = Instantiate(Resources.Load<GameObject>($"Characters/{chosenCharacter}"), pos2);
             Players[1] = spawnedObject;
             var prefabNetworkObject = spawnedObject.GetComponent<NetworkObject>();
-            // It is a player object, Unity needs to know this
             prefabNetworkObject.SpawnAsPlayerObject(clientId, true);
-            // Now the ownership of this object is no longer the server, but the client that just connected
             prefabNetworkObject.ChangeOwnership(clientId);
+            playerIndex++;
         }
     }
 
@@ -352,6 +349,35 @@ public class NetworkSetup : MonoBehaviour
             SetWindowTitle("Fail to start as client");
             Debug.LogError($"Failed to connect on port {transport.ConnectionData.Port}...");
         }
+    }
+
+    private void ApprovalCheck(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
+    {
+        // Get the connection data from the request
+        byte[] connectionData = request.Payload;
+        ulong clientId = request.ClientNetworkId;
+        
+        // Read the character name from connection data
+        string chosenCharacter = "DefaultCharacter";
+        
+        if (connectionData != null && connectionData.Length > 0)
+        {
+            chosenCharacter = System.Text.Encoding.UTF8.GetString(connectionData);
+            Debug.Log($"Client {clientId} requested character: {chosenCharacter}");
+        }
+        else
+        {
+            Debug.LogWarning($"Client {clientId} sent no character data, using default");
+        }
+        
+        // Store the character choice for this client
+        pendingPlayerCharacters[clientId] = chosenCharacter;
+        
+        // Approve connection
+        response.Approved = true;
+        response.CreatePlayerObject = false; // You'll create it manually in OnClientConnected
+        response.PlayerPrefabHash = 0;
+        response.Pending = false;
     }
 
     /*void InitAnalytics()
@@ -433,7 +459,7 @@ public class NetworkSetup : MonoBehaviour
             .Where(s => s.enabled)
             .Select(s => s.path)
             .ToArray();
-        buildPlayerOptions.locationPathName = Path.Combine("Builds", "MPWyzard.exe");
+        buildPlayerOptions.locationPathName = Path.Combine("Builds", "ArcanisDuels.exe");
         buildPlayerOptions.target = BuildTarget.StandaloneWindows64;
         buildPlayerOptions.options = BuildOptions.None;
         // Perform the build
