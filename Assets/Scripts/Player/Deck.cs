@@ -8,9 +8,15 @@ public class Deck
     private List<Card> _availableDeck;
     private List<Card> _cemitery;
 
-    public Deck(List<Card> deck)
+    public Deck(List<int> deck)
     {
-        _deck = deck;
+        _deck = new();
+
+        foreach (int ID in deck)
+        {
+            _deck.Add((Resources.Load("Prefabs/" + ID) as GameObject).GetComponent<Card>());
+        }
+
         _availableDeck = new ();
         _cemitery = new ();
     }

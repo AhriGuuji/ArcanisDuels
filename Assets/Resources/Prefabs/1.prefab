@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 6998659465165127773}
   - component: {fileID: 8073570057852069487}
   m_Layer: 5
-  m_Name: FireBall
+  m_Name: 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -148,6 +148,7 @@ MonoBehaviour:
   <Owner>k__BackingField: {fileID: 0}
   <Priority>k__BackingField: 0
   <Type>k__BackingField: 1
+  <CardID>k__BackingField: 1
   damage: 20
   burnDamage: 5
   burnDuration: 3

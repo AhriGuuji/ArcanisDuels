@@ -8,9 +8,9 @@ public class SelectDeck : MonoBehaviour
     private void Start()
     {
         if (SelectionData.deck.Count > 0)
-            foreach (Card card in SelectionData.deck)
+            foreach (int card in SelectionData.deck)
             {
-                string cardName = card.Name;
+                int cardName = card;
                 string path = "Prefabs/" + cardName;
                 GameObject cardPrefab = Resources.Load<GameObject>(path);
 
@@ -24,11 +24,11 @@ public class SelectDeck : MonoBehaviour
         if (SelectionData.deck.Count == 20) return;
         GameObject card = Instantiate(prefab.gameObject, parentList.transform);
         card.GetComponent<Button>().onClick.AddListener(() => RemoveCard(card));
-        SelectionData.deck.Add(card.GetComponent<Card>());
+        SelectionData.deck.Add(card.GetComponent<Card>().CardID);
     }
     public void RemoveCard(GameObject instance)
     {
-        SelectionData.deck.Remove(instance.GetComponent<Card>());
+        SelectionData.deck.Remove(instance.GetComponent<Card>().CardID);
         Destroy(instance);
     }
 }

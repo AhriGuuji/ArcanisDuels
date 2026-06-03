@@ -20,6 +20,8 @@ using System.Threading.Tasks;
 using Unity.Services.Relay.Models;
 using UnityEngine.UnityConsent;
 using Unity.Services.Lobbies.Models;
+using UnityEngine.SceneManagement;
+
 
 
 
@@ -33,10 +35,9 @@ using Debug = UnityEngine.Debug;
 
 public class NetworkSetup : MonoBehaviour
 {
-    [SerializeField] private Transform          pos1,pos2;
-    [SerializeField] private TextMeshProUGUI    textJoinCode;
     [SerializeField] private int                maxPlayers = 2;
     [SerializeField] private string             joinCode = "";
+    [SerializeField] private string             sceneName = "Battle";
     //[SerializeField] private bool               enableAnalytics;
     public GameObject[] Players { get; private set; }
     private Dictionary<ulong, string> pendingPlayerCharacters = new Dictionary<ulong, string>();
@@ -59,47 +60,49 @@ public class NetworkSetup : MonoBehaviour
     private bool isServer = false;
     private int playerIndex = 0;
     private UnityTransport transport;
+    private ShowLobbyCode lobbyCode;
     private bool isRelay = false;
 
     void Start()
     {
-        Players = new GameObject[2];
+        DontDestroyOnLoad(this);
+        SceneManager.LoadScene(sceneName);
 
-        // Parse command line arguments
-        string[] args = System.Environment.GetCommandLineArgs();
-        for (int i = 0; i < args.Length; i++)
+        Players = new GameObject[maxPlayers];
+
+        lobbyCode = GetComponent<ShowLobbyCode>();
+    
+        if (SelectionData.isServer)
         {
-            if (args[i] == "--server")
-            {
-                // --server found, this should be a server application
-                isServer = true;
-            }
-            else if (args[i] == "--code")
-            {
-                joinCode = ((i + 1) < args.Length) ? (args[i + 1]) : ("");
-            }
+            isServer = SelectionData.isServer;
+        }
+        else
+        {
+            joinCode = SelectionData.code;
         }
 
         transport = GetComponent<UnityTransport>();
+
         if (transport.Protocol == UnityTransport.ProtocolType.RelayUnityTransport)
         {
             isRelay = true;
         }
-        else
-        {
-            textJoinCode.gameObject.SetActive(false);
-        }
 
         if (isServer)
-            StartCoroutine(StartAsServerCR());
+        {
+            string charName = SelectionData.prefabName;
+            List<int> deckList = SelectionData.deck;
+            StartCoroutine(StartAsServerCR(charName, deckList));
+        }
         else
         {
             string charName = SelectionData.prefabName;
-            StartCoroutine(StartAsClientCR(charName));
+            List<int> deckList = SelectionData.deck;
+            StartCoroutine(StartAsClientCR(charName,deckList));
         }
     }
 
-    IEnumerator StartAsServerCR()
+    IEnumerator StartAsServerCR(string character, List<int> deckIds)
     {
         var networkManager = GetComponent<NetworkManager>();
         networkManager.enabled = true;
@@ -113,15 +116,6 @@ public class NetworkSetup : MonoBehaviour
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         if (isRelay)
         {
-            var loginTask = Login();
-            yield return new WaitUntil(() => loginTask.IsCompleted);
-            if (loginTask.Exception != null)
-            {
-                Debug.LogError("Login failed: " + loginTask.Exception);
-                yield break;
-            }
-            Debug.Log("Login successfull!");
-
             var allocationTask = CreateAllocationAsync(maxPlayers);
             yield return new WaitUntil(() => allocationTask.IsCompleted);
             if (allocationTask.Exception != null)
@@ -159,14 +153,8 @@ public class NetworkSetup : MonoBehaviour
                 {
                     Debug.Log("Code retrieved!");
                     relayData.JoinCode = joinCodeTask.Result;
-                    if (textJoinCode != null)
-                    {
-                        textJoinCode.text = $"JoinCode:{relayData.JoinCode}";
-                        textJoinCode.gameObject.SetActive(true);
-                    }
 
                     transport.SetRelayServerData(relayData.IPv4Address, relayData.Port, relayData.AllocationIDBytes, relayData.Key, relayData.ConnectionData);
-
                 }
             }
         }
@@ -191,22 +179,6 @@ public class NetworkSetup : MonoBehaviour
         }
     }
 
-    private async Task Login()
-    {
-        try
-        {
-            await UnityServices.InitializeAsync();
-            if (!AuthenticationService.Instance.IsSignedIn)
-            {
-                await AuthenticationService.Instance.SignInAnonymouslyAsync();
-            }
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError("Error login: " + e);
-            throw e;
-        }
-    }
 
     private async Task<Allocation> CreateAllocationAsync(int maxPlayers)
     {
@@ -239,41 +211,17 @@ public class NetworkSetup : MonoBehaviour
 
     private void OnClientConnected(ulong clientId)
     {
-        if (!NetworkManager.Singleton.IsServer) return;
-
-        // Get the character choice from our dictionary
-        string chosenCharacter = "DefaultCharacter";
-        if (pendingPlayerCharacters.ContainsKey(clientId))
         {
-            chosenCharacter = pendingPlayerCharacters[clientId];
-            pendingPlayerCharacters.Remove(clientId);
-            Debug.Log($"Player {clientId} connected with character: {chosenCharacter}");
-        }
-        else
+        // You need to retrieve from pendingPlayerCharacters, not relayData
+        if (pendingPlayerCharacters.TryGetValue(clientId, out string characterData))
         {
-            Debug.LogWarning($"No character found for client {clientId}, using default");
+            string[] parts = characterData.Split('|');
+            string characterName = parts[0];
+            List<int> deckIds = parts[1].Split(',').Select(int.Parse).ToList();
+            
+            Debug.Log($"Player {clientId} connected as {characterName} with deck: {string.Join(",", deckIds)}");
         }
-
-        Debug.Log($"Player {clientId} connected, prefab index = {playerIndex}!");
-
-        if (playerIndex == 0)
-        {
-            var spawnedObject = Instantiate(Resources.Load<GameObject>($"Characters/{chosenCharacter}"), pos1);
-            Players[0] = spawnedObject;
-            var prefabNetworkObject = spawnedObject.GetComponent<NetworkObject>();
-            prefabNetworkObject.SpawnAsPlayerObject(clientId, true);
-            prefabNetworkObject.ChangeOwnership(clientId);
-            playerIndex++;
-        }
-        else if (playerIndex == 1)
-        {
-            var spawnedObject = Instantiate(Resources.Load<GameObject>($"Characters/{chosenCharacter}"), pos2);
-            Players[1] = spawnedObject;
-            var prefabNetworkObject = spawnedObject.GetComponent<NetworkObject>();
-            prefabNetworkObject.SpawnAsPlayerObject(clientId, true);
-            prefabNetworkObject.ChangeOwnership(clientId);
-            playerIndex++;
-        }
+    }
     }
 
     private void OnClientDisconnected(ulong clientId)
@@ -281,7 +229,7 @@ public class NetworkSetup : MonoBehaviour
         Debug.Log($"Player {clientId} disconnected!");
     }
 
-    IEnumerator StartAsClientCR(string characterName)
+    IEnumerator StartAsClientCR(string characterName, List<int> deckIds)
     {
         var networkManager = GetComponent<NetworkManager>();
         networkManager.enabled = true;
@@ -289,22 +237,15 @@ public class NetworkSetup : MonoBehaviour
         transport.enabled = true;
         SetWindowTitle("Starting as client...");
 
-        byte[] characterData = System.Text.Encoding.UTF8.GetBytes(characterName);
-        networkManager.NetworkConfig.ConnectionData = characterData;
+        string combinedData = $"{characterName}|{string.Join(",", deckIds)}";
+        byte[] connectionData = System.Text.Encoding.UTF8.GetBytes(combinedData);
+        networkManager.NetworkConfig.ConnectionData = connectionData;
 
         // Wait a frame for setups to be done
         yield return null;
 
         if (isRelay)
         {
-            var loginTask = Login();
-            yield return new WaitUntil(() => loginTask.IsCompleted);
-            if (loginTask.Exception != null)
-            {
-                Debug.LogError("Login failed: " + loginTask.Exception);
-                yield break;
-            }
-            Debug.Log("Login successfull!");
             //Ask Unity Services for allocation data based on a join code
             var joinAllocationTask = JoinAllocationAsync(joinCode);
             yield return new WaitUntil(() => joinAllocationTask.IsCompleted);
@@ -353,30 +294,33 @@ public class NetworkSetup : MonoBehaviour
 
     private void ApprovalCheck(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
     {
-        // Get the connection data from the request
         byte[] connectionData = request.Payload;
         ulong clientId = request.ClientNetworkId;
         
-        // Read the character name from connection data
-        string chosenCharacter = "DefaultCharacter";
-        
         if (connectionData != null && connectionData.Length > 0)
         {
-            chosenCharacter = System.Text.Encoding.UTF8.GetString(connectionData);
-            Debug.Log($"Client {clientId} requested character: {chosenCharacter}");
-        }
-        else
-        {
-            Debug.LogWarning($"Client {clientId} sent no character data, using default");
+            string fullData = System.Text.Encoding.UTF8.GetString(connectionData);
+            // Store the full data for parsing in OnClientConnected
+            pendingPlayerCharacters[clientId] = fullData;
+            
+            // Optional: Parse immediately for approval logic
+            string[] parts = fullData.Split('|');
+            string characterName = parts[0];
+            List<int> deckIds = parts[1].Split(',').Select(int.Parse).ToList();
+            
+            Debug.Log($"Client {clientId} connecting as {characterName} with {deckIds.Count} cards");
+            
+            // Example approval condition
+            if (deckIds.Count != 20)
+            {
+                response.Approved = false;
+                response.Reason = "Invalid deck size!";
+                return;
+            }
         }
         
-        // Store the character choice for this client
-        pendingPlayerCharacters[clientId] = chosenCharacter;
-        
-        // Approve connection
         response.Approved = true;
-        response.CreatePlayerObject = false; // You'll create it manually in OnClientConnected
-        response.PlayerPrefabHash = 0;
+        response.CreatePlayerObject = false;
         response.Pending = false;
     }
 

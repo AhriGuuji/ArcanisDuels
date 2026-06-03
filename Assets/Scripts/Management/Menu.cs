@@ -1,14 +1,34 @@
 using UnityEngine.SceneManagement;
 using UnityEngine;
+using TMPro;
 
 public class Menu : MonoBehaviour
 {
-    public void FindMatch(string sceneToLoad)
+    [SerializeField] private TMP_InputField input;
+
+    public void FindMatch(GameObject painel)
     {
-        if (SelectionData.prefabName == null 
+        if (!string.IsNullOrEmpty(SelectionData.prefabName) 
+            || SelectionData.deck.Count < 20) 
+            return;
+
+        OpenPainel(painel);
+    }
+
+    public void SendCode(string scene)
+    {
+        SelectionData.code = input.text;
+        SceneManager.LoadScene(scene);
+    }
+
+    public void CreateMatch(string scene)
+    {
+        if (!string.IsNullOrEmpty(SelectionData.prefabName) 
             || SelectionData.deck.Count <20) 
             return;
-        SceneManager.LoadScene(sceneToLoad);
+
+        SelectionData.isServer = true;
+        SceneManager.LoadScene(scene);
     }
 
     public void ChangeScene(string sceneToLoad)
