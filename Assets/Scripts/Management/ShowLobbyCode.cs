@@ -1,22 +1,37 @@
+using System.Collections;
 using TMPro;
 using Unity.Netcode;
 using UnityEngine;
 
-public class ShowLobbyCode : NetworkBehaviour
+public class ShowLobbyCode : MonoBehaviour
 {
-    [SerializeField] private TextMeshProUGUI code;
-    public readonly NetworkVariable<string> lobbyCode;
+    [SerializeField] private TextMeshProUGUI codeText;  // Renamed for clarity
+    
+    public string LobbyCode { get; private set; }
 
     private void Start()
     {
-        if (SelectionData.isServer)
+        // Initial UI state
+        if (!SelectionData.isServer)
         {
-            lobbyCode.Value = Random.Range(100000,1000000).ToString();
-            code.text = lobbyCode.Value;
+            if (codeText != null)
+                codeText.text = "Searching for opponent...";
         }
         else
         {
-            code.text = "Searching Opponent";
+            if (codeText != null)
+                codeText.text = "Creating lobby...";
+        }
+    }
+
+    public void SetCode(string code)
+    {
+        LobbyCode = code;
+
+        if (codeText != null)
+        {
+            codeText.text = $"Join Code: {code}";
+            Debug.Log($"Lobby code displayed: {code}");
         }
     }
 }

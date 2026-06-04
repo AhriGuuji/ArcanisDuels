@@ -14,6 +14,8 @@ public class CharacterStats : NetworkBehaviour
 
     public float GetSpeed => speed.Value;
     public float CurrentHealth => _health.Value;
+    public float MaxHealth => maxHealth.Value;
+    public float GetAttack => attack.Value;
 
     public event Action OnHealthChange;
     private void HealthChanged()

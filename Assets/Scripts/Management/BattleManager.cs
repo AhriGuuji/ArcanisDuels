@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.Linq;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -7,7 +8,8 @@ using Unity.Netcode;
 
 public class BattleManager : NetworkBehaviour
 {
-    [SerializeField] private NetworkSetup networkSetup;
+    private NetworkSetup networkSetup;
+    [SerializeField] private Visualizer visuals;
     [SerializeField] private Transform pos1, pos2;
     [SerializeField] private Transform[] cardPos;
     private CardSelector _selector1, _selector2;
@@ -15,7 +17,11 @@ public class BattleManager : NetworkBehaviour
     private CharacterStats _player1, _player2;
     private Hand _hand1, _hand2;
     private List<ExtraEffect> _extras;
-    private NetworkVariable<int> _actualTurn;
+    private NetworkVariable<int> _actualTurn  = new NetworkVariable<int>(
+    0,  // Initial value
+    NetworkVariableReadPermission.Everyone,  // Everyone can read
+    NetworkVariableWritePermission.Server    // Only server can write
+);
     public int ActualTurn => _actualTurn.Value;
     private List<List<Card>> _sequences;
     public event Action OnEndTurn;
@@ -25,45 +31,52 @@ public class BattleManager : NetworkBehaviour
         _sequences.Clear();
         _selector1.EndTurnReset();
         _selector2.EndTurnReset();
-        DisposeCards(_hand1.DrawCards());
-        DisposeCards(_hand2.DrawCards());
+        visuals.DisposeCards(_hand1.DrawCards(), networkSetup.Players[0].ClientID);
+        visuals.DisposeCards(_hand2.DrawCards(), networkSetup.Players[0].ClientID);
         OnEndTurn?.Invoke();
     }
 
     private void Awake()
     {
-        if(!IsServer) Destroy(this);
+        if (!IsServer)
+        {
+            enabled = false;  // Disable the component, but keep it
+            return;
+        }
 
+        networkSetup = FindAnyObjectByType<NetworkSetup>();
         _extras = new();
         _sequences = new();
 
-        StartMatch();
+        StartCoroutine(StartMatch());
     }
 
-    private void StartMatch()
+    private IEnumerator StartMatch()
     {
-        _selector1 = networkSetup.Players[0].GetComponent<CardSelector>();
-        _selector2 = networkSetup.Players[1].GetComponent<CardSelector>();
+        yield return new WaitUntil(() => networkSetup.CanStart);
+
+        GameObject firstPlayer = Instantiate(Resources.Load("Prefabs/" + networkSetup.Players[0].CharacterName) as GameObject, pos1);
+        GameObject secondPlayer = Instantiate(Resources.Load("Prefabs/" + networkSetup.Players[1].CharacterName) as GameObject, pos2);
+
+        _player1 = firstPlayer.GetComponent<CharacterStats>();
+        _player2 = secondPlayer.GetComponent<CharacterStats>();
+
+        visuals.Init(_player1, _player2);
+
+        _selector1 = firstPlayer.GetComponent<CardSelector>();
+        _selector2 = secondPlayer.GetComponent<CardSelector>();
 
         _selector1.OnSequenceSelect += ReceiveSequences;
         _selector2.OnSequenceSelect += ReceiveSequences;
 
-        _hand1.ReceiveDeck(new Deck(SelectionData.deck));
-        _hand2.ReceiveDeck(new Deck(SelectionData.deck));
+        _hand1 = new();
+        _hand2 = new();
 
-        DisposeCards(_hand1.DrawCards());
-        DisposeCards(_hand2.DrawCards());
-    }
+        _hand1.ReceiveDeck(new Deck(networkSetup.Players[0].DeckIds));
+        _hand2.ReceiveDeck(new Deck(networkSetup.Players[1].DeckIds));
 
-    private void DisposeCards(Card[] hand)
-    {
-        for (int i = 0; i < hand.Count(); i++)
-        {
-            string cardName = hand[i].Name;
-            string path = "Prefabs/" + cardName;
-            GameObject cardPrefab = Resources.Load<GameObject>(path);
-            Instantiate(cardPrefab,cardPos[i]);
-        }
+        visuals.DisposeCards(_hand1.DrawCards(), networkSetup.Players[0].ClientID);
+        visuals.DisposeCards(_hand2.DrawCards(), networkSetup.Players[1].ClientID);
     }
 
     private void ReceiveSequences(List<Card> sequence)

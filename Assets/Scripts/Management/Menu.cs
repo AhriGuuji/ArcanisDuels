@@ -8,7 +8,8 @@ public class Menu : MonoBehaviour
 
     public void FindMatch(GameObject painel)
     {
-        if (!string.IsNullOrEmpty(SelectionData.prefabName) 
+        Debug.Log($"{SelectionData.prefabName} with {SelectionData.deck.Count} cards");
+        if (string.IsNullOrEmpty(SelectionData.prefabName) 
             || SelectionData.deck.Count < 20) 
             return;
 
@@ -23,7 +24,9 @@ public class Menu : MonoBehaviour
 
     public void CreateMatch(string scene)
     {
-        if (!string.IsNullOrEmpty(SelectionData.prefabName) 
+        Debug.Log($"{SelectionData.prefabName} with {SelectionData.deck.Count} cards");
+
+        if (string.IsNullOrEmpty(SelectionData.prefabName) 
             || SelectionData.deck.Count <20) 
             return;
 

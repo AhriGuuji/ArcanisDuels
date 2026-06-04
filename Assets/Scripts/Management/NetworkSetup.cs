@@ -5,31 +5,14 @@ using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using System;
 using UnityEditor;
-using System.IO;
-
-#if UNITY_EDITOR
-using UnityEditor.Build.Reporting;
-#endif
 
 using System.Linq;
-using TMPro;
 using Unity.Services.Core;
 
 using Unity.Services.Authentication;
 using System.Threading.Tasks;
 using Unity.Services.Relay.Models;
-using UnityEngine.UnityConsent;
-using Unity.Services.Lobbies.Models;
 using UnityEngine.SceneManagement;
-
-
-
-
-
-#if UNITY_STANDALONE_WIN
-using System.Runtime.InteropServices;
-using System.Diagnostics;
-#endif
 
 using Debug = UnityEngine.Debug;
 
@@ -39,7 +22,7 @@ public class NetworkSetup : MonoBehaviour
     [SerializeField] private string             joinCode = "";
     [SerializeField] private string             sceneName = "Battle";
     //[SerializeField] private bool               enableAnalytics;
-    public GameObject[] Players { get; private set; }
+    public List<PlayerInfo> Players { get; private set; }
     private Dictionary<ulong, string> pendingPlayerCharacters = new Dictionary<ulong, string>();
     public ulong ClientID => NetworkManager.Singleton.LocalClientId;
 
@@ -58,19 +41,159 @@ public class NetworkSetup : MonoBehaviour
     private RelayHostData relayData;
 
     private bool isServer = false;
-    private int playerIndex = 0;
     private UnityTransport transport;
     private ShowLobbyCode lobbyCode;
     private bool isRelay = false;
 
-    void Start()
+    public bool CanStart {get; private set;}
+    private string characterName;
+    private List<int> deckIds;
+    private bool isAuthenticated = false;
+    
+    async void Start()
     {
+        // Initialize Unity Services FIRST
+        try
+        {
+            await UnityServices.InitializeAsync();
+            Debug.Log("Unity Services initialized!");
+            
+            // Check if already signed in
+            if (AuthenticationService.Instance.IsSignedIn)
+            {
+                Debug.Log($"Already signed in as: {AuthenticationService.Instance.PlayerId}");
+                isAuthenticated = true;
+                ProceedWithNetworkSetup();
+            }
+            else
+            {
+                // Try auto-sign in with saved credentials
+                await AutoSignIn();
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Failed to initialize: {e.Message}");
+        }
+    }
+    
+    private async Task AutoSignIn()
+    {
+        // Check for saved credentials (from your LocalLogin)
+        if (PlayerPrefs.HasKey("PlayerName") && PlayerPrefs.HasKey("Password"))
+        {
+            string username = PlayerPrefs.GetString("PlayerName");
+            string password = PlayerPrefs.GetString("Password");
+            
+            await SignInWithUsernamePasswordAsync(username, password);
+        }
+        
+        if (!isAuthenticated)
+        {
+            // Fallback to anonymous sign in
+            await SignInAnonymously();
+        }
+        
+        ProceedWithNetworkSetup();
+    }
+    
+    private async Task SignInAnonymously()
+    {
+        try
+        {
+            await AuthenticationService.Instance.SignInAnonymouslyAsync();
+            Debug.Log($"Signed in anonymously as: {AuthenticationService.Instance.PlayerId}");
+            isAuthenticated = true;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Anonymous sign in failed: {e.Message}");
+        }
+    }
+    
+    public async Task SignUpWithUsernamePasswordAsync(string username, string password)
+    {
+        try
+        {
+            await AuthenticationService.Instance.SignUpWithUsernamePasswordAsync(username, password);
+            Debug.Log("SignUp successful!");
+            
+            // Save credentials after successful signup
+            PlayerPrefs.SetString("PlayerName", username);
+            PlayerPrefs.SetString("Password", password);
+            PlayerPrefs.Save();
+            
+            isAuthenticated = true;
+        }
+        catch (AuthenticationException ex)
+        {
+            HandleAuthError(ex);
+        }
+        catch (RequestFailedException ex)
+        {
+            HandleAuthError(ex);
+        }
+    }
+    
+    public async Task SignInWithUsernamePasswordAsync(string username, string password)
+    {
+        try
+        {
+            await AuthenticationService.Instance.SignInWithUsernamePasswordAsync(username, password);
+            Debug.Log("SignIn successful!");
+            
+            // Save credentials on successful login
+            PlayerPrefs.SetString("PlayerName", username);
+            PlayerPrefs.SetString("Password", password);
+            PlayerPrefs.Save();
+            
+            isAuthenticated = true;
+        }
+        catch (AuthenticationException ex)
+        {
+            HandleAuthError(ex);
+        }
+        catch (RequestFailedException ex)
+        {
+            HandleAuthError(ex);
+        }
+    }
+    
+    private void HandleAuthError(Exception ex)
+    {
+        Debug.LogError($"Authentication failed: {ex.Message}");
+        isAuthenticated = false;
+        
+        // You can show UI message here
+        // UIManager.Instance.ShowError($"Login failed: {ex.Message}");
+    }
+    
+    private void ProceedWithNetworkSetup()
+    {
+        if (!isAuthenticated)
+        {
+            Debug.LogError("Cannot proceed - not authenticated!");
+            return;
+        }
+        
+        // Your existing network setup code here
+        // (loading scene, setting up relay, etc.)
+        Debug.Log("Authentication complete! Proceeding with network setup...");
+        
         DontDestroyOnLoad(this);
-        SceneManager.LoadScene(sceneName);
+        Players = new List<PlayerInfo>();
+        lobbyCode = GetComponent<ShowLobbyCode>();
+        
+        CanStart = false;
 
-        Players = new GameObject[maxPlayers];
+        DontDestroyOnLoad(this);
+
+        Players = new ();
 
         lobbyCode = GetComponent<ShowLobbyCode>();
+        
+        characterName = SelectionData.prefabName;
+        deckIds = SelectionData.deck;
     
         if (SelectionData.isServer)
         {
@@ -78,6 +201,7 @@ public class NetworkSetup : MonoBehaviour
         }
         else
         {
+            isServer = false;
             joinCode = SelectionData.code;
         }
 
@@ -89,17 +213,9 @@ public class NetworkSetup : MonoBehaviour
         }
 
         if (isServer)
-        {
-            string charName = SelectionData.prefabName;
-            List<int> deckList = SelectionData.deck;
-            StartCoroutine(StartAsServerCR(charName, deckList));
-        }
+            StartCoroutine(StartAsServerCR(characterName, deckIds));
         else
-        {
-            string charName = SelectionData.prefabName;
-            List<int> deckList = SelectionData.deck;
-            StartCoroutine(StartAsClientCR(charName,deckList));
-        }
+            StartCoroutine(StartAsClientCR(characterName, deckIds));
     }
 
     IEnumerator StartAsServerCR(string character, List<int> deckIds)
@@ -108,7 +224,6 @@ public class NetworkSetup : MonoBehaviour
         networkManager.enabled = true;
         var transport = GetComponent<UnityTransport>();
         transport.enabled = true;
-        SetWindowTitle("Starting as server...");
 
         // Wait a frame for setups to be done
         yield return null;
@@ -154,6 +269,8 @@ public class NetworkSetup : MonoBehaviour
                     Debug.Log("Code retrieved!");
                     relayData.JoinCode = joinCodeTask.Result;
 
+                    lobbyCode.SetCode(relayData.JoinCode);
+
                     transport.SetRelayServerData(relayData.IPv4Address, relayData.Port, relayData.AllocationIDBytes, relayData.Key, relayData.ConnectionData);
                 }
             }
@@ -165,20 +282,22 @@ public class NetworkSetup : MonoBehaviour
 
         if (networkManager.StartServer())
         {
-            SetWindowTitle("ArcanisDuels - Server");
             Debug.Log($"Serving on port {transport.ConnectionData.Port}...");
+
+            string hostData = $"{character}|{string.Join(",", deckIds)}";
+            pendingPlayerCharacters[NetworkManager.ServerClientId] = hostData;
 
             networkManager.ConnectionApprovalCallback += ApprovalCheck;
             networkManager.OnClientConnectedCallback += OnClientConnected;
             networkManager.OnClientDisconnectCallback += OnClientDisconnected;
+
+            OnClientConnected(NetworkManager.ServerClientId);
         }
         else
         {
-            SetWindowTitle("Fail to start as server");
             Debug.LogError($"Failed to serve on port {transport.ConnectionData.Port}...");
         }
     }
-
 
     private async Task<Allocation> CreateAllocationAsync(int maxPlayers)
     {
@@ -213,20 +332,53 @@ public class NetworkSetup : MonoBehaviour
     {
         {
         // You need to retrieve from pendingPlayerCharacters, not relayData
-        if (pendingPlayerCharacters.TryGetValue(clientId, out string characterData))
-        {
-            string[] parts = characterData.Split('|');
-            string characterName = parts[0];
-            List<int> deckIds = parts[1].Split(',').Select(int.Parse).ToList();
-            
-            Debug.Log($"Player {clientId} connected as {characterName} with deck: {string.Join(",", deckIds)}");
+            if (pendingPlayerCharacters.TryGetValue(clientId, out string characterData))
+            {
+                string[] parts = characterData.Split('|');
+                string characterName = parts[0];
+                List<int> deckIds = parts[1].Split(',').Select(int.Parse).ToList();
+                
+                Debug.Log($"Player {clientId} connected as {characterName} with deck: {string.Join(",", deckIds)}");
+
+                PlayerInfo player = new (clientId, characterName, deckIds);
+                
+
+                if (clientId == NetworkManager.ServerClientId)
+                {
+                    // Host is always player 0
+                    Players.Insert(0, player);  // If using List
+                }
+                else
+                {
+                    Players.Add(player);  // Clients go to next available slot
+                }
+            }
+
+            if (Players.Count == maxPlayers)
+            {
+                NetworkManager.Singleton.SceneManager.LoadScene(sceneName, LoadSceneMode.Single);
+                CanStart = true;
+            }
         }
-    }
     }
 
     private void OnClientDisconnected(ulong clientId)
     {
         Debug.Log($"Player {clientId} disconnected!");
+
+        PlayerInfo disconnectedPlayer = Players.Find(p => p.ClientID == clientId);
+        if (disconnectedPlayer != null)
+        {
+            Players.Remove(disconnectedPlayer);
+            Debug.Log($"Removed {disconnectedPlayer.CharacterName} from players list");
+        }
+        
+        // Reset CanStart if needed
+        if (Players.Count < maxPlayers)
+            CanStart = false;
+        
+        // Clean up pending data
+        pendingPlayerCharacters.Remove(clientId);
     }
 
     IEnumerator StartAsClientCR(string characterName, List<int> deckIds)
@@ -235,7 +387,6 @@ public class NetworkSetup : MonoBehaviour
         networkManager.enabled = true;
         var transport = GetComponent<UnityTransport>();
         transport.enabled = true;
-        SetWindowTitle("Starting as client...");
 
         string combinedData = $"{characterName}|{string.Join(",", deckIds)}";
         byte[] connectionData = System.Text.Encoding.UTF8.GetBytes(combinedData);
@@ -282,12 +433,10 @@ public class NetworkSetup : MonoBehaviour
 
         if (networkManager.StartClient())
         {
-            SetWindowTitle("ArcanisDuels - Client...");
             Debug.Log($"Connecting on port {transport.ConnectionData.Port}...");
         }
         else
         {
-            SetWindowTitle("Fail to start as client");
             Debug.LogError($"Failed to connect on port {transport.ConnectionData.Port}...");
         }
     }
@@ -348,155 +497,4 @@ public class NetworkSetup : MonoBehaviour
             throw;
         }
     }
-
-#if UNITY_STANDALONE_WIN
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern bool SetWindowText(IntPtr hWnd, string lpString);
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-    [DllImport("user32.dll")]
-    static extern IntPtr EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
-    // Delegate to filter windows
-    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-    private static IntPtr FindWindowByProcessId(uint processId)
-    {
-        IntPtr windowHandle = IntPtr.Zero;
-        EnumWindows((hWnd, lParam) =>
-        {
-            uint windowProcessId;
-            GetWindowThreadProcessId(hWnd, out windowProcessId);
-            if (windowProcessId == processId)
-            {
-                windowHandle = hWnd;
-                return false; // Found the window, stop enumerating
-            }
-            return true; // Continue enumerating
-        }, IntPtr.Zero);
-        return windowHandle;
-    }
-
-    static void SetWindowTitle(string title)
-    {
-#if !UNITY_EDITOR
-        uint processId = (uint)Process.GetCurrentProcess().Id;
-        IntPtr hWnd = FindWindowByProcessId(processId);
-        if (hWnd != IntPtr.Zero)
-        {
-            SetWindowText(hWnd, title);
-        }
-#endif
-    }
-#else
-    static void SetWindowTitle(string title)
-    {
-    }
-#endif
-
-
-#if UNITY_EDITOR
-    [MenuItem("Tools/Build Windows (x64)", priority = 0)]
-    public static bool BuildGame()
-    {
-        // Specify build options
-        BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions();
-        buildPlayerOptions.scenes = EditorBuildSettings.scenes
-            .Where(s => s.enabled)
-            .Select(s => s.path)
-            .ToArray();
-        buildPlayerOptions.locationPathName = Path.Combine("Builds", "ArcanisDuels.exe");
-        buildPlayerOptions.target = BuildTarget.StandaloneWindows64;
-        buildPlayerOptions.options = BuildOptions.None;
-        // Perform the build
-        var report = BuildPipeline.BuildPlayer(buildPlayerOptions);
-        // Output the result of the build
-        Debug.Log($"Build ended with status: {report.summary.result}");
-        // Additional log on the build, looking at report.summary
-        return report.summary.result == BuildResult.Succeeded;
-    }
-#endif
-
-
-#if UNITY_EDITOR
-    private static void Run(string path, string args)
-    {
-        // Start a new process
-        Process process = new Process();
-        // Configure the process using the StartInfo properties
-        process.StartInfo.FileName = path;
-        process.StartInfo.Arguments = args;
-        process.StartInfo.WindowStyle = ProcessWindowStyle.Normal; // Choose the window style: Hidden, Minimized, Maximized, Normal
-        process.StartInfo.RedirectStandardOutput = false; // Set to true to redirect the output (so you can read it in Unity)
-        process.StartInfo.UseShellExecute = true; // Set to false if you want to redirect the output
-                                                  // Run the process
-        process.Start();
-    }
-
-    [MenuItem("Tools/Build and Launch (Server)", priority = 10)]
-    public static void BuildAndLaunch1()
-    {
-        CloseAll();
-        if (BuildGame())
-        {
-            LaunchServer();
-        }
-    }
-    [MenuItem("Tools/Build and Launch (Client)", priority = 15)]
-    public static void BuildAndLaunchClient()
-    {
-        CloseAll();
-        if (BuildGame())
-        {
-            LaunchClient();
-        }
-    }
-
-    [MenuItem("Tools/Build and Launch (Server + Client)", priority = 20)]
-    public static void BuildAndLaunchServerAndClient()
-    {
-        CloseAll();
-        if (BuildGame())
-        {
-            LaunchClientAndServer();
-        }
-    }
-    [MenuItem("Tools/Launch (Server) _F11", priority = 30)]
-    public static void LaunchServer()
-    {
-        Run("C:\\Users\\imlis\\Desktop\\ArcanisDuels - Build\\ArcanisDuels.exe", "--server");
-    }
-    [MenuItem("Tools/Launch (Server + Client)", priority = 40)]
-    public static void LaunchClientAndServer()
-    {
-        LaunchServer();
-        LaunchClient();
-    }
-    [MenuItem("Tools/Launch (Client)", priority = 45)]
-    public static void LaunchClient()
-    {
-        Run("C:\\Users\\imlis\\Desktop\\ArcanisDuels - Build\\ArcanisDuels.exe", "");
-    }
-
-    [MenuItem("Tools/Close All", priority = 100)]
-    public static void CloseAll()
-    {
-        // Get all processes with the specified name
-        Process[] processes = Process.GetProcessesByName("ArcanisDuels");
-        foreach (var process in processes)
-        {
-            try
-            {
-                // Close the process
-                process.Kill();
-                // Wait for the process to exit
-                process.WaitForExit();
-            }
-            catch (Exception ex)
-            {
-                // Handle exceptions, if any
-                // This could occur if the process has already exited or you don't have permission to kill it
-                Debug.LogWarning($"Error trying to kill process {process.ProcessName}: {ex.Message}");
-            }
-        }
-    }
-#endif
 }

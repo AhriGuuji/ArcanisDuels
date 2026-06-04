@@ -145,10 +145,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0a12b59a386f25248b050cb89511b191, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FireBall
-  <Owner>k__BackingField: {fileID: 0}
   <Priority>k__BackingField: 0
   <Type>k__BackingField: 1
   <CardID>k__BackingField: 1
-  damage: 20
-  burnDamage: 5
+  damage: 40
+  burnDamage: 10
   burnDuration: 3

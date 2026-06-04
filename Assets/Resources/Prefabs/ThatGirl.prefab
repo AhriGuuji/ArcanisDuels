@@ -136,17 +136,17 @@ MonoBehaviour:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 0
+    m_InternalValue: 150
   attack:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 0
+    m_InternalValue: 0.2
   speed:
     UpdateTraits:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
-    m_InternalValue: 0
+    m_InternalValue: 10
 --- !u!114 &2099138719409837534
 MonoBehaviour:
   m_ObjectHideFlags: 0
