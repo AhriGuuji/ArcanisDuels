@@ -1,13 +1,16 @@
 public class Hand
 {
     private Deck _myDeck;
-    private Card[] _hand = new Card[3];
-    public Card GetCard(int idx) => _hand[idx];
-    public Card[] DrawCards()
+    private CardMessanger[] _hand = new CardMessanger[3];
+    private Card[] _currentHand = new Card[3];
+    public Card GetCard(int idx) => _currentHand[idx];
+    public CardMessanger[] DrawCards()
     {
         for(int i = 0; i < _hand.Length; i++)
         {
-            _hand[i] = _myDeck.GetRandomCard();
+            Card rndCard = _myDeck.GetRandomCard();
+            _hand[i] = new CardMessanger{ CardPrefabId = rndCard.CardID, PositionInHand = i};
+            _currentHand[i] = rndCard;
         }
 
         return _hand;

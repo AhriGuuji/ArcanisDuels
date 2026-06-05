@@ -13,8 +13,6 @@ public class LocalLogin : MonoBehaviour
     [SerializeField] private Toggle rememberMeToggle;
     [SerializeField] private TMP_Text errorText;
     
-    private bool isNewUser = false;
-    
     public async void OnLoginClicked()
     {
         await UnityServices.InitializeAsync();
@@ -28,14 +26,12 @@ public class LocalLogin : MonoBehaviour
             return;
         }
         
-        // Disable button, show loading
         errorText.text = "Logging in...";
 
         if (AuthenticationService.Instance.IsSignedIn)
         {
             Debug.Log("Signing out current user before creating new account...");
             AuthenticationService.Instance.SignOut();
-            // Wait a frame for signout to complete
             await Task.Delay(100);
         }
         
@@ -49,11 +45,10 @@ public class LocalLogin : MonoBehaviour
             if (rememberMeToggle != null && rememberMeToggle.isOn)
             {
                 PlayerPrefs.SetString("SavedUsername", username);
-                PlayerPrefs.SetString("SavedPassword", password); // Not secure, but for demo
+                PlayerPrefs.SetString("SavedPassword", password);
                 PlayerPrefs.Save();
             }
             
-            // Load next scene
             SceneManager.LoadScene("MainMenu");
         }
         catch (AuthenticationException ex)
@@ -62,8 +57,7 @@ public class LocalLogin : MonoBehaviour
             {
                 // Account doesn't exist - ask to create
                 ShowError("Account not found. Create new account?");
-                isNewUser = true;
-                errorText.text = "Account not found. Click 'Create Account' to sign up.";
+                errorText.text = "Account not found. Click 'Sign Up' to sign up.";
             }
             else
             {

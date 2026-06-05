@@ -1,17 +1,35 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
+using Unity.Netcode;
 
-public class CardSelector : MonoBehaviour
+public class CardSelector : NetworkBehaviour
 {
-    private List<Card> _sequence;
-    public event Action<List<Card>> OnSequenceSelect;
+    private List<(Card card, int handPosition)> _sequence;
+
+    public event Action<CardMessanger[]> OnSequenceSelect;
     private CharacterStats _stats;
     public void SendSequence()
     {
+        if(!IsOwner) return;
         if(_sequence.Count == 0) return;
 
-        OnSequenceSelect?.Invoke(_sequence);
+        CardMessanger[] messages = new CardMessanger[_sequence.Count];
+        for(int i = 0; i < messages.Length; i++)
+        {
+            messages[i] = new CardMessanger
+            {
+                CardPrefabId = _sequence[i].card.CardID,
+                PositionInHand = _sequence[i].handPosition
+            };
+        }
+
+           SubmitSequenceServerRpc(messages);
+    }
+
+    [ServerRpc]
+    private void SubmitSequenceServerRpc(CardMessanger[] messages)
+    {
+        OnSequenceSelect?.Invoke(messages); 
     }
 
     private void Start()
@@ -20,12 +38,13 @@ public class CardSelector : MonoBehaviour
         _stats = GetComponent<CharacterStats>();
     }
 
-    public void SelectCard(Card card)
+    public void SelectCard(Card card, int handPosition)
     {
+        if(!IsOwner) return;
         if (_sequence.Count == 3) return;
-        //card.gameObject.SetActive(false);
+        card.gameObject.SetActive(false);
         card.SetOwner(_stats);
-        _sequence.Add(card);
+        _sequence.Add((card, handPosition));
     }
 
     public void ClearSelection()

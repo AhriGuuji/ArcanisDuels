@@ -4,17 +4,16 @@ using UnityEngine;
 
 public class CharacterStats : NetworkBehaviour
 {
-    [SerializeField] protected NetworkVariable<float> maxHealth;
-    [SerializeField] protected NetworkVariable<float> attack;
-    [SerializeField] protected NetworkVariable<float> speed;
-    protected NetworkObject networkObject;
+    protected NetworkVariable<float> maxHealth = new NetworkVariable<float>(150f);
+    protected NetworkVariable<float> attack = new NetworkVariable<float>(0.2f);
+    protected NetworkVariable<float> speed = new NetworkVariable<float>(10f);
+    private Animator _anim;
 
-    private NetworkVariable<float> _health;
-    private NetworkVariable<float> _block;
+    private NetworkVariable<float> _health = new NetworkVariable<float>(0f);
+    private NetworkVariable<float> _block = new NetworkVariable<float>(0f);
 
     public float GetSpeed => speed.Value;
     public float CurrentHealth => _health.Value;
-    public float MaxHealth => maxHealth.Value;
     public float GetAttack => attack.Value;
 
     public event Action OnHealthChange;
@@ -23,14 +22,21 @@ public class CharacterStats : NetworkBehaviour
         OnHealthChange?.Invoke();
     }
 
-    private void Start()
+    public override void OnNetworkSpawn()
     {
-        _health.Value = maxHealth.Value;
-        networkObject = GetComponent<NetworkObject>();
+        if (IsServer)
+        {
+            _health.Value = maxHealth.Value;
+            _block.Value = 0;
+        }
+        
+        _anim = GetComponent<Animator>();
     }
 
     public void TakeDamage(float damage)
     {
+        if(!IsServer) return;
+
         float damageDone = damage;
 
         if (_block.Value > 0)
@@ -55,27 +61,83 @@ public class CharacterStats : NetworkBehaviour
 
     public void ReceiveHealing(float healing)
     {
+        if(!IsServer) return;
+
         _health.Value += healing;
-        HealthChanged();
 
         if (_health.Value > maxHealth.Value)
         {
             _health.Value = maxHealth.Value;
         }
+
+        HealthChanged();
     }
 
     public void ReceiveBlocking(float block)
     {
+        if(!IsServer) return;
+
         _block.Value += block;
+    }
+
+    public void ClearBlock()
+    {
+        if(!IsServer) return;
+
+        _block.Value = 0;
     }
 
     public void GetPowered(StatusCard powerUpCard)
     {
+        if(!IsServer) return;
+
         powerUpCard.Apply(this);
     }
 
     public void GetUnpowered(StatusCard powerDownCard)
     {
+        if(!IsServer) return;
+
         powerDownCard.Apply(this);
+    }
+
+    [ClientRpc]
+    public void PlayAnimationClientRpc(CardType card)
+    {
+        PlayAnimation(card);
+    }
+
+    public void PlayAnimation(CardType card)
+    {
+        if (_anim == null) return;
+        
+        switch(card)
+            {
+                case CardType.Damage:
+                    {
+                        _anim.Play("Take");
+                        break;
+                    }
+                case CardType.Heal:
+                    {
+                        _anim.Play("Heal");
+                        break;
+                    }
+                case CardType.Block:
+                    {
+                        _anim.Play("Block");
+                        break;
+                    }
+                case CardType.PowerUp:
+                    {
+                        _anim.Play("PowerUp");
+                        break; 
+                    }
+                case CardType.PowerDown:
+                    {
+                        _anim.Play("PowerDown");
+                        break;
+                    }
+            }
     }
 }

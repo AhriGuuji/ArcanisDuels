@@ -12,7 +12,8 @@ GameObject:
   - component: {fileID: 7142002921308297441}
   - component: {fileID: 729710864584096919}
   - component: {fileID: 2640724785769395972}
-  - component: {fileID: 2099138719409837534}
+  - component: {fileID: 266979794054437394}
+  - component: {fileID: 246411752278580021}
   m_Layer: 0
   m_Name: ThatGirl
   m_TagString: Untagged
@@ -147,7 +148,29 @@ MonoBehaviour:
       MinSecondsBetweenUpdates: 0
       MaxSecondsBetweenUpdates: 0
     m_InternalValue: 10
---- !u!114 &2099138719409837534
+--- !u!95 &266979794054437394
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7277709750559131651}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 8bcac89627692c74e81e673e6aa53904, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &246411752278580021
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -159,3 +182,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 530f491f46cc11f4a9baca72f2a2485c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CardSelector
+  ShowTopMostFoldoutHeaderGroup: 1

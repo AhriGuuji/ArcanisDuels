@@ -6,7 +6,6 @@ public class Deck
 {
     private List<Card> _deck;
     private List<Card> _availableDeck;
-    private List<Card> _cemitery;
 
     public Deck(List<int> deck)
     {
@@ -18,12 +17,11 @@ public class Deck
         }
 
         _availableDeck = new ();
-        _cemitery = new ();
     }
 
     public Card GetRandomCard()
     {
-        if (_availableDeck.Count == 0 || _availableDeck == null ) Shuffle();
+        if (_availableDeck == null || _availableDeck.Count == 0 ) Shuffle();
         Card newCard = _availableDeck[Random.Range(0, _availableDeck.Count)];
         _availableDeck.Remove(newCard);
         return newCard;
@@ -32,12 +30,11 @@ public class Deck
     public void Shuffle()
     {
         _availableDeck = _deck.OrderBy(i => Random. value).ToList();
-        _cemitery.Clear();
     }
 
     public void AddCard(Card card)
     {
-        if(_deck.Count == 30) return;
+        if(_deck.Count == 20) return;
         _deck.Add(card);
     }
 

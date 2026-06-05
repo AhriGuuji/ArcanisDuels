@@ -4,7 +4,6 @@ using UnityEngine;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using System;
-using UnityEditor;
 
 using System.Linq;
 using Unity.Services.Core;
@@ -175,30 +174,19 @@ public class NetworkSetup : MonoBehaviour
             Debug.LogError("Cannot proceed - not authenticated!");
             return;
         }
-        
-        // Your existing network setup code here
-        // (loading scene, setting up relay, etc.)
+
         Debug.Log("Authentication complete! Proceeding with network setup...");
         
         DontDestroyOnLoad(this);
         Players = new List<PlayerInfo>();
         lobbyCode = GetComponent<ShowLobbyCode>();
-        
         CanStart = false;
 
-        DontDestroyOnLoad(this);
-
-        Players = new ();
-
-        lobbyCode = GetComponent<ShowLobbyCode>();
-        
         characterName = SelectionData.prefabName;
         deckIds = SelectionData.deck;
-    
+
         if (SelectionData.isServer)
-        {
             isServer = SelectionData.isServer;
-        }
         else
         {
             isServer = false;
@@ -208,9 +196,7 @@ public class NetworkSetup : MonoBehaviour
         transport = GetComponent<UnityTransport>();
 
         if (transport.Protocol == UnityTransport.ProtocolType.RelayUnityTransport)
-        {
             isRelay = true;
-        }
 
         if (isServer)
             StartCoroutine(StartAsServerCR(characterName, deckIds));
@@ -287,7 +273,9 @@ public class NetworkSetup : MonoBehaviour
             string hostData = $"{character}|{string.Join(",", deckIds)}";
             pendingPlayerCharacters[NetworkManager.ServerClientId] = hostData;
 
+            networkManager.NetworkConfig.ConnectionApproval = true;
             networkManager.ConnectionApprovalCallback += ApprovalCheck;
+            networkManager.StartServer();
             networkManager.OnClientConnectedCallback += OnClientConnected;
             networkManager.OnClientDisconnectCallback += OnClientDisconnected;
 
@@ -366,19 +354,8 @@ public class NetworkSetup : MonoBehaviour
     {
         Debug.Log($"Player {clientId} disconnected!");
 
-        PlayerInfo disconnectedPlayer = Players.Find(p => p.ClientID == clientId);
-        if (disconnectedPlayer != null)
-        {
-            Players.Remove(disconnectedPlayer);
-            Debug.Log($"Removed {disconnectedPlayer.CharacterName} from players list");
-        }
-        
-        // Reset CanStart if needed
-        if (Players.Count < maxPlayers)
-            CanStart = false;
-        
-        // Clean up pending data
-        pendingPlayerCharacters.Remove(clientId);
+        NetworkManager.Singleton.SceneManager.LoadScene("MainMenu", LoadSceneMode.Single);
+        Destroy(gameObject);
     }
 
     IEnumerator StartAsClientCR(string characterName, List<int> deckIds)

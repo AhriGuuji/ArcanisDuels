@@ -1,5 +1,3 @@
-using UnityEngine;
-
 public abstract class StatusCard : Card
 {
     public abstract void Apply(CharacterStats player);

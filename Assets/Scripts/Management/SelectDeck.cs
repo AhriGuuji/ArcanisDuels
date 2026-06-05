@@ -15,7 +15,9 @@ public class SelectDeck : MonoBehaviour
                 GameObject cardPrefab = Resources.Load<GameObject>(path);
 
                 GameObject obj = Instantiate(cardPrefab, parentList.transform);
-                obj.GetComponent<Button>().onClick.AddListener(() => RemoveCard(obj));
+                Button button = obj.GetComponent<Button>();
+                button.enabled = true;
+                button.onClick.AddListener(() => RemoveCard(obj));
             }
     }
 
