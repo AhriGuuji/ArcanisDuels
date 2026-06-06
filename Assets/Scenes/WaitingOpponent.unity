@@ -303,9 +303,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7829fa250db737b4497272b1abd4f401, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NetworkSetup
-  maxPlayers: 2
-  joinCode: 
-  sceneName: Battle
+  _maxPlayers: 2
+  _joinCode: 
+  _sceneName: Battle
 --- !u!4 &468579521
 Transform:
   m_ObjectHideFlags: 0
@@ -368,7 +368,7 @@ MonoBehaviour:
   NetworkConfig:
     ProtocolVersion: 0
     NetworkTransport: {fileID: 468579522}
-    PlayerPrefab: {fileID: 7277709750559131651, guid: 9203fcbd6477667449261224cab5b0ea, type: 3}
+    PlayerPrefab: {fileID: 0}
     Prefabs:
       NetworkPrefabsLists:
       - {fileID: 11400000, guid: 8c18948602455494883e884da95f9ec6, type: 2}
@@ -393,7 +393,7 @@ MonoBehaviour:
     NetworkProfilingMetrics: 1
     OldPrefabList: []
   RunInBackground: 1
-  LogLevel: 1
+  LogLevel: 0
 --- !u!1 &481051919
 GameObject:
   m_ObjectHideFlags: 0

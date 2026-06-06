@@ -276,19 +276,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 356444015}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: CardSelector, Assembly-CSharp
-        m_MethodName: SendSequence
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!114 &356444015
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -770,10 +758,6 @@ MonoBehaviour:
   visuals: {fileID: 758517705}
   pos1: {fileID: 94301561940633951}
   pos2: {fileID: 580362063}
-  cardPos:
-  - {fileID: 1011858489}
-  - {fileID: 2035817481}
-  - {fileID: 967090288}
 --- !u!114 &758517705
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -786,15 +770,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ceabfbd1025f3c947a7211f246bd1b45, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Visualizer
-  ShowTopMostFoldoutHeaderGroup: 1
   BM: {fileID: 758517704}
   healthP1: {fileID: 951372807}
   healthP2: {fileID: 1492938612}
   turn: {fileID: 1590104247}
   cardPos:
-  - {fileID: 1011858489}
-  - {fileID: 2035817481}
-  - {fileID: 967090288}
+  - {fileID: 1011858495}
+  - {fileID: 2035817487}
+  - {fileID: 967090294}
+  cardSprites:
+  - {fileID: 1011858494}
+  - {fileID: 2035817486}
+  - {fileID: 967090293}
+  sendSequence: {fileID: 356444014}
 --- !u!114 &758517706
 MonoBehaviour:
   m_ObjectHideFlags: 0

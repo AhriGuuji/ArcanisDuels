@@ -24,11 +24,15 @@ public class CharacterStats : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        if (IsServer)
+        base.OnNetworkSpawn();
+
+        if(IsServer)
         {
             _health.Value = maxHealth.Value;
             _block.Value = 0;
         }
+        
+        _health.OnValueChanged += (_, newValue) => OnHealthChange?.Invoke();
         
         _anim = GetComponent<Animator>();
     }
@@ -99,12 +103,6 @@ public class CharacterStats : NetworkBehaviour
         if(!IsServer) return;
 
         powerDownCard.Apply(this);
-    }
-
-    [ClientRpc]
-    public void PlayAnimationClientRpc(CardType card)
-    {
-        PlayAnimation(card);
     }
 
     public void PlayAnimation(CardType card)

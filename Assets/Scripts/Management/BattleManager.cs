@@ -14,55 +14,68 @@ public class BattleManager : NetworkBehaviour
     private CardSelector _selector1, _selector2;
     private CharacterStats _firstAtLastTurn;
     private CharacterStats _player1, _player2;
+    private GameObject _firstPlayer, _secondPlayer;
+    private ulong _player1ID, _player2ID;
     private List<Card> _player1Sequence, _player2Sequence;
     private Hand _hand1, _hand2;
     private List<ExtraEffect> _extras;
-    private NetworkVariable<int> _actualTurn  = new NetworkVariable<int>(
-    0,
-    NetworkVariableReadPermission.Everyone,
-    NetworkVariableWritePermission.Server 
-);
+    private NetworkVariable<int> _actualTurn  = new NetworkVariable<int>(0);
     public int ActualTurn => _actualTurn.Value;
+    public ulong ClientID => networkSetup.ClientID;
     public event Action OnEndTurn;
-    private void EndTurn()
+    public event Action OnTurnChanged;
+    private IEnumerator EndTurn()
     {
+        OnEndTurn?.Invoke();
+
+        yield return new WaitForSeconds(0.5f);
+
         _selector1.EndTurnReset();
         _selector2.EndTurnReset();
 
         _player1.ClearBlock();
         _player2.ClearBlock();
 
-        visuals.DisposeCardsClientRpc(_hand1.DrawCards(), _player1.OwnerClientId);
-        visuals.DisposeCardsClientRpc(_hand2.DrawCards(), _player2.OwnerClientId);
-        OnEndTurn?.Invoke();
+        DisposeCardsClientRpc(_hand1.DrawCards(), _player1ID, _hand2.DrawCards(), _player2ID);
     }
 
     public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
         networkSetup = FindAnyObjectByType<NetworkSetup>();
         _extras = new();
-
-        if (IsServer)
-            StartCoroutine(StartMatch());
+        if (IsServer) StartCoroutine(StartMatch());
+        _actualTurn.OnValueChanged += (_, __) => OnTurnChanged?.Invoke();
     }
 
     private IEnumerator StartMatch()
     {
         yield return new WaitUntil(() => networkSetup.CanStart);
 
-        GameObject firstPlayer = Instantiate(Resources.Load("Prefabs/" + networkSetup.Players[0].CharacterName) as GameObject, pos1.position, pos1.rotation);
-        GameObject secondPlayer = Instantiate(Resources.Load("Prefabs/" + networkSetup.Players[1].CharacterName) as GameObject, pos2.position, pos2.rotation);
+        _firstPlayer = Instantiate(Resources.Load<GameObject>("Prefabs/" + networkSetup.Players[0].CharacterName), pos1.position, pos1.rotation);
+        _secondPlayer = Instantiate(Resources.Load<GameObject>("Prefabs/" + networkSetup.Players[1].CharacterName), pos2.position, pos2.rotation);
+        
+        NetworkObject netObj1 = _firstPlayer.GetComponent<NetworkObject>();
+        NetworkObject netObj2 = _secondPlayer.GetComponent<NetworkObject>();
+        netObj1.SpawnWithOwnership(networkSetup.Players[0].ClientID, true);
+        netObj2.SpawnWithOwnership(networkSetup.Players[1].ClientID, true);
 
-        NetworkObject netObj1 = firstPlayer.GetComponent<NetworkObject>();
-        NetworkObject netObj2 = secondPlayer.GetComponent<NetworkObject>();
-        netObj1.Spawn();
-        netObj2.Spawn();
+        yield return new WaitUntil(() =>
+            NetworkManager.Singleton.SpawnManager.SpawnedObjects.ContainsKey(netObj1.NetworkObjectId) &&
+            NetworkManager.Singleton.SpawnManager.SpawnedObjects.ContainsKey(netObj2.NetworkObjectId));
 
-        _player1 = firstPlayer.GetComponent<CharacterStats>();
-        _player2 = secondPlayer.GetComponent<CharacterStats>();
+        InitSelectorsClientRpc(netObj1.NetworkObjectId, netObj2.NetworkObjectId);
+        
+        _player1ID = networkSetup.Players[0].ClientID;
+        _player2ID = networkSetup.Players[1].ClientID;
+        
+        yield return null;
+        
+        _player1 = _firstPlayer.GetComponent<CharacterStats>();
+        _player2 = _secondPlayer.GetComponent<CharacterStats>();
 
-        _selector1 = firstPlayer.GetComponent<CardSelector>();
-        _selector2 = secondPlayer.GetComponent<CardSelector>();
+        _selector1 = _firstPlayer.GetComponent<CardSelector>();
+        _selector2 = _secondPlayer.GetComponent<CardSelector>();
 
         _selector1.OnSequenceSelect += OnLocalSequenceSelected;
         _selector2.OnSequenceSelect += OnLocalSequenceSelected;
@@ -73,50 +86,48 @@ public class BattleManager : NetworkBehaviour
         _hand1.ReceiveDeck(new Deck(networkSetup.Players[0].DeckIds));
         _hand2.ReceiveDeck(new Deck(networkSetup.Players[1].DeckIds));
 
-        visuals.Init(_player1, networkSetup, _selector1);
-        InitVisualsClientRpc();
+        InitVisualsClientRpc(netObj1.NetworkObjectId, netObj2.NetworkObjectId);
 
-        ClientRpcParams rpcParams = new ClientRpcParams
-        {
-            Send = new ClientRpcSendParams
-            {
-                TargetClientIds = NetworkManager.Singleton.ConnectedClientsIds.ToArray()
-            }
-        };
+        yield return null;
 
-        visuals.DisposeCardsClientRpc(_hand1.DrawCards(), _player1.OwnerClientId, rpcParams);
-        visuals.DisposeCardsClientRpc(_hand2.DrawCards(), _player2.OwnerClientId, rpcParams);
+        DisposeCardsClientRpc(_hand1.DrawCards(), _player1ID, _hand2.DrawCards(), _player2ID);
     }
 
     [ClientRpc]
-    private void InitVisualsClientRpc()
+    private void InitVisualsClientRpc(ulong obj1Id, ulong obj2Id)
     {
-        foreach (var spawned in NetworkManager.Singleton.SpawnManager.SpawnedObjects)
-        {
-            CharacterStats stats = spawned.Value.GetComponent<CharacterStats>();
-            if (stats != null && stats.OwnerClientId == NetworkManager.Singleton.LocalClientId)
-            {
-                CardSelector mySelector = spawned.Value.GetComponent<CardSelector>();
-                visuals.Init(stats, networkSetup, mySelector);
-                break;
-            }
-        }
+        CharacterStats p1 = NetworkManager.Singleton.SpawnManager.SpawnedObjects[obj1Id].GetComponent<CharacterStats>();
+        CharacterStats p2 = NetworkManager.Singleton.SpawnManager.SpawnedObjects[obj2Id].GetComponent<CharacterStats>();
+        visuals.Init(p1, p2);
     }
 
-    private void OnLocalSequenceSelected(CardMessanger[] cards)
+    [ClientRpc]
+    private void InitSelectorsClientRpc(ulong obj1Id, ulong obj2Id)
     {
-        ReceiveSequencesServerRpc(cards);
+        _selector1 = NetworkManager.Singleton.SpawnManager.SpawnedObjects[obj1Id].GetComponent<CardSelector>();
+        _selector2 = NetworkManager.Singleton.SpawnManager.SpawnedObjects[obj2Id].GetComponent<CardSelector>();
     }
 
-    [ServerRpc]
-    private void ReceiveSequencesServerRpc(CardMessanger[] selections, ServerRpcParams rpcParams = default)
+    [ClientRpc]
+    private void DisposeCardsClientRpc(CardMessanger[] hand1, ulong id1, CardMessanger[] hand2, ulong id2)
+    {
+        visuals.DisposeCards(hand1, id1, _selector1);
+        visuals.DisposeCards(hand2, id2, _selector2);
+    }
+
+    private void OnLocalSequenceSelected(CardMessanger[] cards, ulong senderId)
+    {
+        ReceiveSequencesServerRpc(cards, senderId);
+    }
+
+    [Rpc(SendTo.Server)]
+    private void ReceiveSequencesServerRpc(CardMessanger[] selections, ulong ID)
     {   
         List<Card> actualCards = new List<Card>();
-        ulong senderId = rpcParams.Receive.SenderClientId;
-        
+
         foreach (CardMessanger selection in selections)
         {
-            if (senderId == _player1.OwnerClientId)
+            if (ID == _player1.OwnerClientId)
             {
                 Card card = _hand1.GetCard(selection.PositionInHand);
                 card.BattleManager = this;
@@ -125,7 +136,7 @@ public class BattleManager : NetworkBehaviour
 
                 _player1Sequence = actualCards;
             }
-            else if (senderId == _player2.OwnerClientId)
+            else if (ID == _player2.OwnerClientId)
             {
                 Card card = _hand2.GetCard(selection.PositionInHand);
                 card.BattleManager = this;
@@ -207,25 +218,8 @@ public class BattleManager : NetworkBehaviour
             }
         }
 
-        //Apply Extra Effects
         ApplyExtras();
-        EndTurn();
-    }
-
-    private void BroadcastHealthToOpponent(CharacterStats damagedPlayer)
-    {
-        float opponentHealth = damagedPlayer == _player1 ? _player2.CurrentHealth : _player1.CurrentHealth;
-        ulong targetClientId = damagedPlayer == _player1 ? _player2.OwnerClientId : _player1.OwnerClientId;
-        
-        ClientRpcParams rpcParams = new ClientRpcParams
-        {
-            Send = new ClientRpcSendParams
-            {
-                TargetClientIds = new ulong[] { targetClientId }
-            }
-        };
-        
-        visuals.UpdateLifesClientRpc(opponentHealth, rpcParams);
+        if (IsServer) StartCoroutine(EndTurn());
     }
 
     private void DoSequence(List<Card> cards)
@@ -267,7 +261,7 @@ public class BattleManager : NetworkBehaviour
 
     private void ApplyExtras()
     {
-        foreach (ExtraEffect effect in _extras)
+        foreach (ExtraEffect effect in _extras.ToList())
         {
             effect.Effect();
         }
@@ -291,10 +285,6 @@ public class BattleManager : NetworkBehaviour
     {
         attackCard.BattleManager = this;
         target.TakeDamage(attackCard.Effect(target) * attackCard.Owner.GetAttack);
-
-        BroadcastHealthToOpponent(target);
-
-        target.PlayAnimationClientRpc(attackCard.Type);
         target.PlayAnimation(attackCard.Type);
     }
 
@@ -302,10 +292,6 @@ public class BattleManager : NetworkBehaviour
     {
         healingCard.BattleManager = this;
         target.ReceiveHealing(healingCard.Effect(target));
-
-        BroadcastHealthToOpponent(target);
-
-        target.PlayAnimationClientRpc(healingCard.Type);
         target.PlayAnimation(healingCard.Type);
     }
 
@@ -313,7 +299,6 @@ public class BattleManager : NetworkBehaviour
     {
         blockCard.BattleManager = this;
         target.ReceiveBlocking(blockCard.Effect(target));
-        target.PlayAnimationClientRpc(blockCard.Type);
         target.PlayAnimation(blockCard.Type);
     }
 
@@ -321,7 +306,6 @@ public class BattleManager : NetworkBehaviour
     {
         powerUpCard.BattleManager = this;
         target.GetPowered(powerUpCard);
-        target.PlayAnimationClientRpc(powerUpCard.Type);
         target.PlayAnimation(powerUpCard.Type);
     }
 
@@ -329,7 +313,6 @@ public class BattleManager : NetworkBehaviour
     {
         powerDownCard.BattleManager = this;
         target.GetUnpowered(powerDownCard);
-        target.PlayAnimationClientRpc(powerDownCard.Type);
         target.PlayAnimation(powerDownCard.Type);
     }
 }

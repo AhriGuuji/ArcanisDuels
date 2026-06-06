@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using Unity.Netcode;
+using UnityEngine;
+using UnityEngine.UI;
 
 public class CardSelector : NetworkBehaviour
 {
     private List<(Card card, int handPosition)> _sequence;
 
-    public event Action<CardMessanger[]> OnSequenceSelect;
+    public event Action<CardMessanger[], ulong> OnSequenceSelect;
     private CharacterStats _stats;
     public void SendSequence()
     {
@@ -23,17 +25,19 @@ public class CardSelector : NetworkBehaviour
             };
         }
 
-           SubmitSequenceServerRpc(messages);
+        SubmitSequenceServerRpc(messages);
     }
 
-    [ServerRpc]
-    private void SubmitSequenceServerRpc(CardMessanger[] messages)
+    [Rpc(SendTo.Server)]
+    private void SubmitSequenceServerRpc(CardMessanger[] messages, RpcParams rpcParams = default)
     {
-        OnSequenceSelect?.Invoke(messages); 
+        ulong senderId = rpcParams.Receive.SenderClientId;
+        OnSequenceSelect?.Invoke(messages, senderId); // ou chamar BattleManager diretamente
     }
 
-    private void Start()
+    public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
         _sequence = new();
         _stats = GetComponent<CharacterStats>();
     }
@@ -42,7 +46,8 @@ public class CardSelector : NetworkBehaviour
     {
         if(!IsOwner) return;
         if (_sequence.Count == 3) return;
-        card.gameObject.SetActive(false);
+
+        card.GetComponent<Button>().interactable = false;
         card.SetOwner(_stats);
         _sequence.Add((card, handPosition));
     }
