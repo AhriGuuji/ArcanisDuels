@@ -26,7 +26,23 @@ public class BattleManager : NetworkBehaviour
     public event Action OnTurnChanged;
     private IEnumerator EndTurn()
     {
-        if (_player1.IsDead || _player2.IsDead) yield break;
+        if (_player1.IsDead || _player2.IsDead) 
+        {
+            if (_player1.IsDead)
+            {
+                ulong deadNetObjId = _player1.GetComponent<NetworkObject>().NetworkObjectId;
+                CallDeathAndEndGameClientRpc(deadNetObjId, true);
+                _player1.GetComponent<NetworkObject>().Despawn();
+            }
+            else if (_player2.IsDead)
+            {
+                ulong deadNetObjId = _player2.GetComponent<NetworkObject>().NetworkObjectId;
+                CallDeathAndEndGameClientRpc(deadNetObjId, false);
+                _player2.GetComponent<NetworkObject>().Despawn();
+            }
+
+            yield break;
+        }
         
         OnEndTurn?.Invoke();
 
@@ -288,14 +304,6 @@ public class BattleManager : NetworkBehaviour
         attackCard.BattleManager = this;
         target.TakeDamage(attackCard.Effect(target) * attackCard.Owner.GetAttack);
         target.PlayAnimation(attackCard.Type);
-        if (target.IsDead)
-        {
-            ulong deadNetObjId = target.GetComponent<NetworkObject>().NetworkObjectId;
-            bool player1Died = target == _player1;
-            
-            CallDeathAndEndGameClientRpc(deadNetObjId, player1Died);
-            target.GetComponent<NetworkObject>().Despawn();
-        }
     }
 
     [ClientRpc]
@@ -340,5 +348,11 @@ public class BattleManager : NetworkBehaviour
         powerDownCard.BattleManager = this;
         target.GetUnpowered(powerDownCard);
         target.PlayAnimation(powerDownCard.Type);
+    }
+
+
+    public void ExitBattle(string scene)
+    {
+        networkSetup.RetrieveScene(scene);
     }
 }

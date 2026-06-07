@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class CharacterStats : NetworkBehaviour
 {
+    [SerializeField] private CharData charData;
     private NetworkVariable<float> maxHealth = new NetworkVariable<float>(150f);
     private NetworkVariable<float> attack = new NetworkVariable<float>(0.2f);
     private NetworkVariable<float> speed = new NetworkVariable<float>(10f);
@@ -27,6 +28,10 @@ public class CharacterStats : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+
+        maxHealth.Value = charData.maxHealth;
+        attack.Value = charData.attack;
+        speed.Value = charData.speed;
 
         if(IsServer)
         {

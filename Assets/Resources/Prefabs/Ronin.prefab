@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 266979794054437394}
   - component: {fileID: 246411752278580021}
   m_Layer: 0
-  m_Name: ThatGirl
+  m_Name: Ronin
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -85,7 +85,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 1522865845, guid: be615dd3fc4b64843afe27878923d945, type: 3}
+  m_Sprite: {fileID: 4723107735738678597, guid: 4410a305dd25c4e4c81560a9ada05f67, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -107,7 +107,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 4045588176
+  GlobalObjectIdHash: 1059534270
   InScenePlacedSourceGlobalObjectIdHash: 4045588176
   DeferredDespawnTick: 0
   Ownership: 1
@@ -133,7 +133,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterStats
   ShowTopMostFoldoutHeaderGroup: 1
-  charData: {fileID: 11400000, guid: fc51b01d7e4bea948ac5eaf31704b5ad, type: 2}
+  charData: {fileID: 11400000, guid: c918d5f9ab7bbff4896e5429b771011c, type: 2}
 --- !u!95 &266979794054437394
 Animator:
   serializedVersion: 7

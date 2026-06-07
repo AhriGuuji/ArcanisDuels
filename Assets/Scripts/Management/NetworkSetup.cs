@@ -296,9 +296,7 @@ public class NetworkSetup : MonoBehaviour
         }
 
         if (networkManager.StartClient())
-            Debug.Log($"Connecting on port {_transport.ConnectionData.Port}...");
-        else
-            Debug.LogError($"Failed to connect on port {_transport.ConnectionData.Port}");
+            networkManager.OnClientDisconnectCallback += OnClientDisconnected;
     }
 
     private IEnumerator SetupRelayAsClient()
