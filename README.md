@@ -41,11 +41,11 @@ Foi implementado um sistema de login básico, mas inseguro(Não tem nenhum tipo 
 
 - **Unity Netcode for GameObjects** — sistema de networking principal
 - **Relay (Unity Services)** — para ligações P2P sem servidor dedicado
-- ![alt text](Assets/Images/image-67.png)
+![alt text](Assets/Images/image-67.png)
   - O código usado é o referente às aulas de redes.
 - **NetworkVariable** — sincronização de dados entre clientes
-- ![alt text](Assets/Images/image-1.png)
-- ![alt text](Assets/Images/image-2.png)
+![alt text](Assets/Images/image-1.png)
+![alt text](Assets/Images/image-2.png)
   - Usadas para comunicar os valores entre os clientes para principalmente dar update em UI. As propriedades são acedidas pelo servidor para usar durante a turno, para calcular o dano e ordem de ataque.
 - **ClientRpc / ServerRpc** — comunicação entre servidor e clientes, para evitar que o cliente possa fazer muita coisa por si próprio e posso receber as atualizações de feedback.
 - **SceneManagement via NetworkSceneManager** — carregamento de cenas sincronizado, usado entre a WaitingOpponent e a Battle scenes. O normal do Unity não carregava o client depois.
