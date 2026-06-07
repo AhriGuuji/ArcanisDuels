@@ -70,7 +70,7 @@ _Estimativa do custo de rede por turno(Expectativa calculada com ajuda de AI):_
 | `NetworkVariable` updates (vida, turno) | ~8 bytes cada | Quando mudam |
 
 _Gráficos presentes no UnityCloud, usando o Relay_
-![alt text](Images/image.png)
+![alt text](Assets/Images/image.png)
 
 Infelizmente temos poucos dados ainda para tirar conclusões, porém no dia 6 de Junho, onde finalmente o jogo passava de um turno, os valores chegaram a 1.2 MiB, sendo cerca de 3 turnos para a sessão acabar. O valor é relativamente baixo se levarmos em conta que o valor máximo para usar os serviços online do Unity por mês é de 50 GB/mês.
 
@@ -140,3 +140,4 @@ Host/Server                                    Client
 - [Aulas de Redes do Professor Diogo Andrade](https://www.youtube.com/playlist?list=PLheBz0T_uVP2xi8RJiPhm31mPHXWgztqZ)
 - [Repositório do Projeto de Redes de Júlia Costa](https://github.com/Juhhxx/ProjectoRedes)
 - Uso do DeepSeekAI e ClaudAI para correção de bugs, opiniões sobre eficiência e ideias alternativas face aos bloqueios de progresso.
+- Arte criada por mim e também retirada do Craftpix.
