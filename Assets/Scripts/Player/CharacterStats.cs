@@ -4,13 +4,15 @@ using UnityEngine;
 
 public class CharacterStats : NetworkBehaviour
 {
-    protected NetworkVariable<float> maxHealth = new NetworkVariable<float>(150f);
-    protected NetworkVariable<float> attack = new NetworkVariable<float>(0.2f);
-    protected NetworkVariable<float> speed = new NetworkVariable<float>(10f);
+    private NetworkVariable<float> maxHealth = new NetworkVariable<float>(150f);
+    private NetworkVariable<float> attack = new NetworkVariable<float>(0.2f);
+    private NetworkVariable<float> speed = new NetworkVariable<float>(10f);
     private Animator _anim;
 
     private NetworkVariable<float> _health = new NetworkVariable<float>(0f);
     private NetworkVariable<float> _block = new NetworkVariable<float>(0f);
+    private NetworkVariable<bool> _isDead = new NetworkVariable<bool>(false);
+    public bool IsDead => _isDead.Value;
 
     public float GetSpeed => speed.Value;
     public float CurrentHealth => _health.Value;
@@ -30,6 +32,7 @@ public class CharacterStats : NetworkBehaviour
         {
             _health.Value = maxHealth.Value;
             _block.Value = 0;
+            _isDead.Value = false;
         }
         
         _health.OnValueChanged += (_, newValue) => OnHealthChange?.Invoke();
@@ -59,7 +62,7 @@ public class CharacterStats : NetworkBehaviour
         if (_health.Value <= 0)
         {
             _health.Value = 0;
-            //Character Death Function
+            _isDead.Value = true;
         }
     }
 

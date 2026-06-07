@@ -26,6 +26,8 @@ public class BattleManager : NetworkBehaviour
     public event Action OnTurnChanged;
     private IEnumerator EndTurn()
     {
+        if (_player1.IsDead || _player2.IsDead) yield break;
+        
         OnEndTurn?.Invoke();
 
         yield return new WaitForSeconds(0.5f);
@@ -286,6 +288,30 @@ public class BattleManager : NetworkBehaviour
         attackCard.BattleManager = this;
         target.TakeDamage(attackCard.Effect(target) * attackCard.Owner.GetAttack);
         target.PlayAnimation(attackCard.Type);
+        if (target.IsDead)
+        {
+            ulong deadNetObjId = target.GetComponent<NetworkObject>().NetworkObjectId;
+            bool player1Died = target == _player1;
+            
+            CallDeathAndEndGameClientRpc(deadNetObjId, player1Died);
+            target.GetComponent<NetworkObject>().Despawn();
+        }
+    }
+
+    [ClientRpc]
+    private void CallDeathAndEndGameClientRpc(ulong deadNetObjId, bool player1Died)
+    {
+        if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(deadNetObjId, out var netObj))
+            netObj.gameObject.SetActive(false);
+
+        if (player1Died)
+        {
+            visuals.ShowResultScreen(NetworkManager.Singleton.LocalClientId == _player2ID);
+        }
+        else
+        {
+            visuals.ShowResultScreen(NetworkManager.Singleton.LocalClientId == _player1ID);
+        }
     }
 
     private void DoHealing(Card healingCard, CharacterStats target)

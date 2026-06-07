@@ -14,6 +14,7 @@ public class Visualizer : MonoBehaviour
     [SerializeField] private Image[] cardSprites;
     [SerializeField] private Button sendSequence;
     [SerializeField] private Sprite placeHolder;
+    [SerializeField] private GameObject winScreen, loseScreen;
 
     public void Init(CharacterStats player1, CharacterStats player2)
     {
@@ -65,5 +66,13 @@ public class Visualizer : MonoBehaviour
             cardPos[i].interactable = true;
             cardSprites[i].sprite = card.GetComponent<Image>().sprite;
         }
+    }
+
+    public void ShowResultScreen(bool isWin)
+    {
+        if (isWin)
+            winScreen.SetActive(true);
+        else
+            loseScreen.SetActive(true);
     }
 }
