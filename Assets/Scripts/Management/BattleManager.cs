@@ -111,7 +111,7 @@ public class BattleManager : NetworkBehaviour
         DisposeCardsClientRpc(_hand1.DrawCards(), _player1ID, _hand2.DrawCards(), _player2ID);
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.ClientsAndHost)]
     private void InitVisualsClientRpc(ulong obj1Id, ulong obj2Id)
     {
         CharacterStats p1 = NetworkManager.Singleton.SpawnManager.SpawnedObjects[obj1Id].GetComponent<CharacterStats>();
@@ -119,14 +119,14 @@ public class BattleManager : NetworkBehaviour
         visuals.Init(p1, p2);
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.ClientsAndHost)]
     private void InitSelectorsClientRpc(ulong obj1Id, ulong obj2Id)
     {
         _selector1 = NetworkManager.Singleton.SpawnManager.SpawnedObjects[obj1Id].GetComponent<CardSelector>();
         _selector2 = NetworkManager.Singleton.SpawnManager.SpawnedObjects[obj2Id].GetComponent<CardSelector>();
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.ClientsAndHost)]
     private void DisposeCardsClientRpc(CardMessanger[] hand1, ulong id1, CardMessanger[] hand2, ulong id2)
     {
         visuals.DisposeCards(hand1, id1, _selector1);
@@ -306,7 +306,7 @@ public class BattleManager : NetworkBehaviour
         target.PlayAnimation(attackCard.Type);
     }
 
-    [ClientRpc]
+    [Rpc(SendTo.ClientsAndHost)]
     private void CallDeathAndEndGameClientRpc(ulong deadNetObjId, bool player1Died)
     {
         if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(deadNetObjId, out var netObj))

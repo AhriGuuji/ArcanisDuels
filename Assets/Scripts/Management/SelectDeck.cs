@@ -4,9 +4,16 @@ using UnityEngine.UI;
 public class SelectDeck : MonoBehaviour
 {
     [SerializeField] private GameObject parentList;
+    [SerializeField] private GameObject[] cardsList;
 
     private void Start()
     {
+        foreach(GameObject card in cardsList)
+        {
+            card.GetComponent<Button>().onClick.AddListener(() => SelectCard(card));
+        }
+
+
         if (SelectionData.deck.Count > 0)
             foreach (int card in SelectionData.deck)
             {
@@ -24,8 +31,10 @@ public class SelectDeck : MonoBehaviour
     public void SelectCard(GameObject prefab)
     {
         if (SelectionData.deck.Count == 20) return;
-        GameObject card = Instantiate(prefab.gameObject, parentList.transform);
-        card.GetComponent<Button>().onClick.AddListener(() => RemoveCard(card));
+        GameObject card = Instantiate(prefab, parentList.transform);
+        Button button = card.GetComponent<Button>();
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(() => RemoveCard(card));
         SelectionData.deck.Add(card.GetComponent<Card>().CardID);
     }
     public void RemoveCard(GameObject instance)

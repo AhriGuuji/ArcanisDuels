@@ -116,7 +116,7 @@ MonoBehaviour:
     m_PressedTrigger: Pressed
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
-  m_Interactable: 1
+  m_Interactable: 0
   m_TargetGraphic: {fileID: 7065571215906541886}
   m_OnClick:
     m_PersistentCalls:
@@ -148,6 +148,6 @@ MonoBehaviour:
   <Priority>k__BackingField: 0
   <Type>k__BackingField: 1
   <CardID>k__BackingField: 1
-  damage: 40
-  burnDamage: 10
+  damage: 25
+  burnDamage: 5
   burnDuration: 3

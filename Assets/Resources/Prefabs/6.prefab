@@ -148,5 +148,5 @@ MonoBehaviour:
   <Priority>k__BackingField: 0
   <Type>k__BackingField: 3
   <CardID>k__BackingField: 6
-  damage: 30
+  damage: 20
   heal: 15

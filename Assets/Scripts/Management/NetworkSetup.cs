@@ -15,7 +15,6 @@ using Debug = UnityEngine.Debug;
 public class NetworkSetup : MonoBehaviour
 {
     [SerializeField] private int    _maxPlayers = 2;
-    [SerializeField] private string _joinCode   = "";
     [SerializeField] private string _sceneName  = "Battle";
 
     public List<PlayerInfo> Players    { get; private set; }
@@ -31,6 +30,7 @@ public class NetworkSetup : MonoBehaviour
     private bool                       _isAuthenticated;
     private string                     _characterName;
     private List<int>                  _deckIds;
+    private string                     _joinCode;
 
     //Lifecycle
 
@@ -128,7 +128,9 @@ public class NetworkSetup : MonoBehaviour
         }
     }
 
-    // Salva as credenciais no PlayerPrefs. Repito, eu sei que é errado.
+    // Salva as credenciais no PlayerPrefs. Repito, eu sei que é errado porque não tem encriptação nenhuma.
+    // Confirmei que o Unity faz encriptação nas coisinhas dele, mas deixar uma passe circular no meu pc
+    // nenhuma proteção, faz-me confusão.
     private void SaveCredentials(string username, string password)
     {
         PlayerPrefs.SetString("PlayerName", username);
@@ -208,7 +210,7 @@ public class NetworkSetup : MonoBehaviour
             Debug.LogError($"Failed to start server on port {_transport.ConnectionData.Port}");
         }
     }
-
+ 
     private IEnumerator SetupRelayAsServer()
     {
         var allocationTask = CreateAllocationAsync(_maxPlayers);
