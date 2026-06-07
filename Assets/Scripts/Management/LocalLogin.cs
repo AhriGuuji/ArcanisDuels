@@ -5,6 +5,7 @@ using Unity.Services.Authentication;
 using UnityEngine.SceneManagement;
 using Unity.Services.Core;
 using System.Threading.Tasks;
+using WebSocketSharp;
 
 public class LocalLogin : MonoBehaviour
 {
@@ -12,7 +13,20 @@ public class LocalLogin : MonoBehaviour
     [SerializeField] private TMP_InputField passwordInput;
     [SerializeField] private Toggle rememberMeToggle;
     [SerializeField] private TMP_Text errorText;
-    
+
+    private void Start()
+    {
+        if (!PlayerPrefs.GetString("SavedUsername").IsNullOrEmpty())
+        {
+            usernameInput.text = PlayerPrefs.GetString("SavedUsername");
+        }
+        
+        if (!PlayerPrefs.GetString("SavedPassword").IsNullOrEmpty())
+        {
+            passwordInput.text = PlayerPrefs.GetString("SavedPassword");
+        }
+    }
+
     public async void OnLoginClicked()
     {
         await UnityServices.InitializeAsync();
@@ -30,18 +44,14 @@ public class LocalLogin : MonoBehaviour
 
         if (AuthenticationService.Instance.IsSignedIn)
         {
-            Debug.Log("Signing out current user before creating new account...");
             AuthenticationService.Instance.SignOut();
             await Task.Delay(100);
         }
         
         try
         {
-            // First try to sign in
             await AuthenticationService.Instance.SignInWithUsernamePasswordAsync(username, password);
-            Debug.Log("Login successful!");
             
-            // Save if remember me
             if (rememberMeToggle != null && rememberMeToggle.isOn)
             {
                 PlayerPrefs.SetString("SavedUsername", username);
@@ -55,7 +65,6 @@ public class LocalLogin : MonoBehaviour
         {
             if (ex.ErrorCode == 401)
             {
-                // Account doesn't exist - ask to create
                 ShowError("Account not found. Create new account?");
                 errorText.text = "Account not found. Click 'Sign Up' to sign up.";
             }
@@ -93,9 +102,7 @@ public class LocalLogin : MonoBehaviour
 
         if (AuthenticationService.Instance.IsSignedIn)
         {
-            Debug.Log("Signing out current user before creating new account...");
             AuthenticationService.Instance.SignOut();
-            // Wait a frame for signout to complete
             await Task.Delay(100);
         }
         
@@ -104,10 +111,8 @@ public class LocalLogin : MonoBehaviour
             await AuthenticationService.Instance.SignUpWithUsernamePasswordAsync(username, password);
             Debug.Log("Account created successfully!");
             
-            // Auto sign in
             await AuthenticationService.Instance.SignInWithUsernamePasswordAsync(username, password);
             
-            // Save for next time
             PlayerPrefs.SetString("SavedUsername", username);
             PlayerPrefs.Save();
             
@@ -130,6 +135,5 @@ public class LocalLogin : MonoBehaviour
     private void ShowError(string message)
     {
         errorText.text = message;
-        Debug.LogError(message);
     }
 }
