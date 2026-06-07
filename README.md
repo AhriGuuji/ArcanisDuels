@@ -25,15 +25,82 @@ O jogo apenas permite criar ou entrar em partida se tiver selecionado um persona
 ### O que foi implementado
 
 A mecânica principal do jogo é enviar as cartas da mão para o servidor fazer os calculos, recebendo as sequências e vendo os donos das cartas, o servidor faz os cálculos pela ordem de velocidades ou se existirem cartas com prioridade, a sequência passa a ter prioridade. Tudo gerido por um BattleManager que o servidor usa para distruibuir os dados e etc entre jogadores e servidor.
-![alt text](Assets/Images/image-5.png)
+```c#
+[Rpc(SendTo.Server)]
+    private void ReceiveSequencesServerRpc(CardMessanger[] selections, ulong ID)
+    {   
+        List<Card> actualCards = new List<Card>();
+
+        foreach (CardMessanger selection in selections)
+        {
+            if (ID == _player1.OwnerClientId)
+            {
+                Card card = _hand1.GetCard(selection.PositionInHand);
+                card.BattleManager = this;
+                card.SetOwner(_player1);
+                actualCards.Add(card);
+
+                _player1Sequence = actualCards;
+            }
+            else if (ID == _player2.OwnerClientId)
+            {
+                Card card = _hand2.GetCard(selection.PositionInHand);
+                card.BattleManager = this;
+                card.SetOwner(_player2);
+                actualCards.Add(card);
+                
+                _player2Sequence = actualCards;
+            }
+        }
+    
+        
+        if (_player1Sequence != null && _player2Sequence != null)
+        {
+            StartCoroutine(Turn(_player1Sequence, _player2Sequence));
+            _player1Sequence = null;
+            _player2Sequence = null;
+        }
+    }
+```
 
 O sistema de rede começou com base no sistema utilizado em aulas de rede, alterando para tratar um dos jogadores, o que gera o código da sessão, como Host. Uso o sistema de Relay do Unity para criar ligações P2P.
 
 A conexão da ligação é feita com dados armazenados em "SelectionData.cs", que é uma classe que guarda durante o jogo o nome do personagem escolhido e o deck para inicializar no início do jogo, se o jogador pretende ser Host ou não com um booleano, caso sim, terá de clicar em "Create Lobby", e um código em string, que o cliente deverá clicar em "Find Match" para surgir uma tela que pede o código a enviar.
-![alt text](Assets/Images/image-3.png)
+```c#
+public static class SelectionData
+{
+    public readonly static string playerName = PlayerPrefs.GetString("PlayerName");
+    public static string prefabName;
+    public static List<int> deck = new(); 
+    public static bool isServer = false;
+    public static string code;
+}
+```
 
 Isto é enviado para uma cena onde faz a conexão inteira, até enviar ambos os jogadores para uma nova cena, onde spawnam os seus personagens(sendo o Host sempre à esquerda) e o servidor distribuí a mão para cada jogador, surgindo na parte inferior central da tela.
-![alt text](Assets/Images/image-4.png)
+```c#
+private void OnClientConnected(ulong clientId)
+  {
+      if (!_pendingPlayerData.TryGetValue(clientId, out string characterData))return;
+
+       string[]  parts         = characterData.Split('|');
+      string    characterName = parts[0];
+      List<int> deckIds       = parts[1].Split(',').Select(int.Parse).ToList();
+
+      PlayerInfo player = new(clientId, characterName, deckIds);
+
+      if (clientId == NetworkManager.ServerClientId)
+          Players.Insert(0, player);
+      else
+          Players.Add(player);
+
+      if (Players.Count == _maxPlayers)
+      {
+          NetworkManager.Singleton.SceneManager.OnLoadEventCompleted += OnSceneLoadCompleted;
+          NetworkManager.Singleton.SceneManager.LoadScene(_sceneName, LoadSceneMode.Single);
+      }
+  }
+```
 
 Foi implementado um sistema de login básico, mas inseguro(Não tem nenhum tipo de encriptação para quando a passe é guardada no computador do jogador). O próprio Unity encripta o a passe na sua cloud, mas continuo a achar inseguro guardar a passe no computador de alguém sem algum tipo de encriptação, mesmo que seja só memória local do Unity.
 
@@ -41,11 +108,121 @@ Foi implementado um sistema de login básico, mas inseguro(Não tem nenhum tipo 
 
 - **Unity Netcode for GameObjects** — sistema de networking principal
 - **Relay (Unity Services)** — para ligações P2P sem servidor dedicado
-![alt text](Assets/Images/image-67.png)
+```c#
+private IEnumerator SetupRelayAsServer()
+    {
+        var allocationTask = CreateAllocationAsync(_maxPlayers);
+        yield return new WaitUntil(() => allocationTask.IsCompleted);
+
+        if (allocationTask.Exception != null)
+        {
+            Debug.LogError("Relay allocation failed: " + allocationTask.Exception);
+            yield break;
+        }
+
+        Allocation allocation = allocationTask.Result;
+        _relayData = new RelayHostData();
+
+        foreach (var endpoint in allocation.ServerEndpoints)
+        {
+            _relayData.IPv4Address = endpoint.Host;
+            _relayData.Port        = (ushort)endpoint.Port;
+            break;
+        }
+
+        _relayData.AllocationID      = allocation.AllocationId;
+        _relayData.AllocationIDBytes = allocation.AllocationIdBytes;
+        _relayData.ConnectionData    = allocation.ConnectionData;
+        _relayData.Key               = allocation.Key;
+
+        var joinCodeTask = GetJoinCodeAsync(_relayData.AllocationID);
+        yield return new WaitUntil(() => joinCodeTask.IsCompleted);
+
+        if (joinCodeTask.Exception != null)
+        {
+            Debug.LogError("Failed to get join code: " + joinCodeTask.Exception);
+            _relayData = null;
+            yield break;
+        }
+
+        _relayData.JoinCode = joinCodeTask.Result;
+        _lobbyCode.SetCode(_relayData.JoinCode);
+        _transport.SetRelayServerData(_relayData.IPv4Address, _relayData.Port, _relayData.AllocationIDBytes, _relayData.Key, _relayData.ConnectionData);
+    }
+
+    private async Task<Allocation> CreateAllocationAsync(int maxPlayers)
+    {
+        try
+        {
+            return await Unity.Services.Relay.RelayService.Instance.CreateAllocationAsync(maxPlayers);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("Error creating allocation: " + e);
+            throw;
+        }
+    }
+
+    private async Task<string> GetJoinCodeAsync(Guid allocationID)
+    {
+        try
+        {
+            return await Unity.Services.Relay.RelayService.Instance.GetJoinCodeAsync(allocationID);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("Error getting join code: " + e);
+            throw;
+        }
+    }
+```
   - O código usado é o referente às aulas de redes.
 - **NetworkVariable** — sincronização de dados entre clientes
-![alt text](Assets/Images/image-1.png)
-![alt text](Assets/Images/image-2.png)
+```c#
+public class CharacterStats : NetworkBehaviour
+{
+    [SerializeField] private CharData charData;
+    private NetworkVariable<float> maxHealth = new NetworkVariable<float>(150f);
+    private NetworkVariable<float> attack = new NetworkVariable<float>(0.2f);
+    private NetworkVariable<float> speed = new NetworkVariable<float>(10f);
+    private Animator _anim;
+
+    private NetworkVariable<float> _health = new NetworkVariable<float>(0f);
+    private NetworkVariable<float> _block = new NetworkVariable<float>(0f);
+    private NetworkVariable<bool> _isDead = new NetworkVariable<bool>(false);
+    public bool IsDead => _isDead.Value;
+
+    public float GetSpeed => speed.Value;
+    public float CurrentHealth => _health.Value;
+    public float GetAttack => attack.Value;
+
+    public event Action OnHealthChange;
+    private void HealthChanged()
+    {
+        OnHealthChange?.Invoke();
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+
+        maxHealth.Value = charData.maxHealth;
+        attack.Value = charData.attack;
+        speed.Value = charData.speed;
+
+        if(IsServer)
+        {
+            _health.Value = maxHealth.Value;
+            _block.Value = 0;
+            _isDead.Value = false;
+        }
+        
+        _health.OnValueChanged += (_, newValue) => OnHealthChange?.Invoke();
+        
+        _anim = GetComponent<Animator>();
+    }
+```
+
   - Usadas para comunicar os valores entre os clientes para principalmente dar update em UI. As propriedades são acedidas pelo servidor para usar durante a turno, para calcular o dano e ordem de ataque.
 - **ClientRpc / ServerRpc** — comunicação entre servidor e clientes, para evitar que o cliente possa fazer muita coisa por si próprio e posso receber as atualizações de feedback.
 - **SceneManagement via NetworkSceneManager** — carregamento de cenas sincronizado, usado entre a WaitingOpponent e a Battle scenes. O normal do Unity não carregava o client depois.
